@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Real Chat</title>
+    <style>
+        /* 白黒シンプルデザイン */
+        body { margin: 0; font-family: sans-serif; height: 100vh; background: #fff; color: #000; display: flex; overflow: hidden; }
+        
+        /* ログイン画面 */
+        #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        input { padding: 10px; border: 1px solid #000; outline: none; margin-bottom: 10px; width: 250px; }
+        button { background: #000; color: #fff; border: 1px solid #000; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #333; }
+
+        /* メイン画面 */
+        #main-screen { display: none; width: 100%; height: 100%; }
+        .sidebar { width: 250px; border-right: 1px solid #000; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #000; display: flex; justify-content: space-between; align-items: center; font-weight: bold; height: 50px; }
+        .add-btn { cursor: pointer; font-size: 1.5rem; }
+        .friend-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .friend-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .friend-item.active { background: #000; color: #fff; }
+
+        /* チャットエリア */
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .chat-header { padding: 15px; border-bottom: 1px solid #000; height: 50px; display: flex; align-items: center; font-weight: bold; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .msg { display: flex; flex-direction: column; max-width: 70%; }
+        .msg.sent { align-self: flex-end; align-items: flex-end; }
+        .msg.received { align-self: flex-start; align-items: flex-start; }
+        .bubble { padding: 10px 15px; border: 1px solid #000; line-height: 1.4; word-break: break-all; }
+        .sent .bubble { background: #000; color: #fff; }
+        .received .bubble { background: #fff; color: #000; }
+        
+        /* 既読マーク */
+        .read-mark { font-size: 0.7rem; color: #888; margin-top: 2px; visibility: hidden; }
+        .read-mark.visible { visibility: visible; }
+
+        .input-area { padding: 15px; border-top: 1px solid #000; display: flex; gap: 10px; visibility: hidden; }
+        .input-area input { flex: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h2>LOGIN</h2>
+        <input type="text" id="my-name" placeholder="あなたのユーザーID">
+        <button onclick="startApp()">始める</button>
+    </div>
+
+    <div id="main-screen">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span id="display-my-name"></span>
+                <span class="add-btn" onclick="addFriend()">＋</span>
+            </div>
+            <ul class="friend-list" id="friend-list"></ul>
+        </div>
+        <div class="chat-area">
+            <div class="chat-header" id="chat-header">相手を選択してください</div>
+            <div class="messages" id="messages-container"></div>
+            <div class="input-area" id="input-area">
+                <input type="text" id="msg-input" placeholder="メッセージ...">
+                <button onclick="sendMessage()">送信</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // ★★★ あなたの専用キー（埋め込み済み） ★★★
+        const firebaseConfig = {
+            apiKey: "AIzaSyBa8kgwcvMk3IoKaIbMlrRVVz1EHupvcsE",
+            authDomain: "simple-chat-fa8cb.firebaseapp.com",
+            projectId: "simple-chat-fa8cb",
+            storageBucket: "simple-chat-fa8cb.firebasestorage.app",
+            messagingSenderId: "180077807120",
+            appId: "1:180077807120:web:97cc9cfa9735955ce22c95",
+            measurementId: "G-L1PTP1MSYQ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        let myName = "";
+        let currentChatPartner = "";
+        let friends = [];
+        let allMessages = [];
+
+        window.startApp = () => {
+            const input = document.getElementById('my-name').value.trim();
+            if(!input) return alert("IDを入力してください");
+            myName = input;
+            document.getElementById('display-my-name').innerText = myName;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-screen').style.display = 'flex';
+            const saved = localStorage.getItem("chat_friends_" + myName);
+            if(saved) friends = JSON.parse(saved);
+            renderFriendList();
+            startListening();
+        };
+
+        window.addFriend = () => {
+            const name = prompt("通話したい相手のIDを入力してください");
+            if(name && name !== myName && !friends.includes(name)) {
+                friends.push(name);
+                localStorage.setItem("chat_friends_" + myName, JSON.stringify(friends));
+                renderFriendList();
+            }
+        };
+
+        function renderFriendList() {
+            const ul = document.getElementById('friend-list');
+            ul.innerHTML = "";
+            friends.forEach(f => {
+                const li = document.createElement('li');
+                li.className = `friend-item ${f === currentChatPartner ? 'active' : ''}`;
+                li.innerText = f;
+                li.onclick = () => selectFriend(f);
+                ul.appendChild(li);
+            });
+        }
+
+        async function selectFriend(name) {
+            currentChatPartner = name;
+            document.getElementById('chat-header').innerText = name;
+            document.getElementById('input-area').style.visibility = 'visible';
+            renderFriendList();
+            renderMessages();
+            
+            const batch = writeBatch(db);
+            let hasUpdate = false;
+            allMessages.forEach(m => {
+                if(m.from === currentChatPartner && m.to === myName && m.isRead === false) {
+                    batch.update(doc(db, "messages", m.id), { isRead: true });
+                    hasUpdate = true;
+                }
+            });
+            if(hasUpdate) await batch.commit();
+        }
+
+        function startListening() {
+            const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+            onSnapshot(q, (snapshot) => {
+                allMessages = [];
+                snapshot.forEach(d => allMessages.push({ id: d.id, ...d.data() }));
+                renderMessages();
+                if(currentChatPartner) selectFriend(currentChatPartner);
+            });
+        }
+
+        function renderMessages() {
+            if(!currentChatPartner) return;
+            const container = document.getElementById('messages-container');
+            container.innerHTML = "";
+            const chatLog = allMessages.filter(m => 
+                (m.from === myName && m.to === currentChatPartner) ||
+                (m.from === currentChatPartner && m.to === myName)
+            );
+            chatLog.forEach(m => {
+                const isMe = m.from === myName;
+                const div = document.createElement('div');
+                div.className = `msg ${isMe ? 'sent' : 'received'}`;
+                let html = `<div class="bubble">${m.text}</div>`;
+                if (isMe) html += `<div class="read-mark ${m.isRead ? 'visible' : ''}">既読</div>`;
+                div.innerHTML = html;
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        window.sendMessage = async () => {
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if(!text || !currentChatPartner) return;
+            try {
+                await addDoc(collection(db, "messages"), {
+                    from: myName, to: currentChatPartner, text: text,
+                    timestamp: new Date().getTime(), isRead: false
+                });
+                input.value = "";
+            } catch(e) { alert("送信エラー: データベースの設定(テストモード)を確認してください"); }
+        };
+    </script>
+</body>
+</html>
