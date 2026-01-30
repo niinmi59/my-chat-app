@@ -8,36 +8,28 @@
         /* --- デザイン設定 --- */
         body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; height: 100vh; background: #fff; color: #333; display: flex; overflow: hidden; }
         
-        /* アイコンの基本設定 */
         .material-icons { font-size: 24px; vertical-align: middle; }
         .icon-btn { cursor: pointer; color: #333; transition: color 0.2s; position: relative; padding: 5px; display: flex; align-items: center; justify-content: center; }
         .icon-btn:hover { color: #888; background: rgba(0,0,0,0.05); border-radius: 50%; }
 
-        /* ボタン共通 */
         button { background: #000; color: #fff; border: 1px solid #000; padding: 8px 16px; cursor: pointer; font-weight: bold; font-size: 0.9rem; border-radius: 4px; transition: opacity 0.2s; }
         button:hover { opacity: 0.8; }
         button.secondary { background: #fff; color: #000; border: 1px solid #ddd; }
-        button.danger { background: #fff; color: #d32f2f; border: 1px solid #d32f2f; }
-        button.danger:hover { background: #d32f2f; color: #fff; }
         
         input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 4px; transition: border 0.2s; }
         input:focus { border-color: #000; }
 
-        /* 画面レイアウト */
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #main-screen { display: none; width: 100%; height: 100%; }
         
-        /* サイドバー */
         .sidebar { width: 320px; border-right: 1px solid #eee; display: flex; flex-direction: column; background: #fafafa; }
-        .sidebar-header { padding: 0 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; height: 60px; }
+        .sidebar-header { padding: 0 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; height: 60px; }
         
-        .icon-area { display: flex; gap: 10px; align-items: center; }
+        .icon-area { display: flex; gap: 8px; align-items: center; }
         
-        /* 通知バッジ（赤丸） */
         .badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; display: none; border: 2px solid #fff; }
         .badge.active { display: block; }
 
-        /* リストエリア */
         .list-section { padding: 12px 20px; font-weight: bold; font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; }
         .scroll-list { overflow-y: auto; flex: 1; }
         
@@ -46,13 +38,11 @@
         .item-row.active { background: #eee; border-right: 4px solid #000; }
         .item-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 
-        /* チャットエリア */
         .chat-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
         .chat-header { padding: 0 20px; border-bottom: 1px solid #eee; height: 60px; display: flex; align-items: center; font-weight: bold; justify-content: space-between; }
         
         .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #fff; }
         
-        /* メッセージ */
         .msg { display: flex; flex-direction: column; max-width: 70%; }
         .msg.sent { align-self: flex-end; align-items: flex-end; }
         .msg.received { align-self: flex-start; align-items: flex-start; }
@@ -60,14 +50,12 @@
         .bubble { padding: 12px 16px; line-height: 1.6; word-break: break-all; border-radius: 12px; font-size: 0.95rem; }
         .sent .bubble { background: #000; color: #fff; border-bottom-right-radius: 2px; }
         .received .bubble { background: #f2f2f2; color: #000; border-bottom-left-radius: 2px; }
-        
         .bubble img, .bubble video, .bubble iframe { max-width: 100%; border-radius: 8px; margin-top: 5px; }
 
         .sender-name { font-size: 0.7rem; color: #999; margin-bottom: 4px; margin-left: 4px; }
         .read-mark { font-size: 0.7rem; color: #999; margin-top: 4px; visibility: hidden; text-align: right; margin-right: 4px; }
         .read-mark.visible { visibility: visible; }
 
-        /* 入力エリア */
         .input-area { padding: 20px; border-top: 1px solid #eee; display: flex; gap: 15px; visibility: hidden; align-items: center; background: #fff; }
         .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; }
         .input-area input[type=text]:focus { background: #f0f0f0; outline: none; }
@@ -95,7 +83,7 @@
     <div id="main-screen">
         <div class="sidebar">
             <div class="sidebar-header">
-                <span id="my-name-disp" style="font-weight:bold; font-size:1.1rem;">ID</span>
+                <span id="my-name-disp" style="font-weight:bold; font-size:1.1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100px;">ID</span>
                 
                 <div class="icon-area">
                     <div class="icon-btn" onclick="document.getElementById('modal-notif').style.display='flex'" title="通知">
@@ -108,13 +96,15 @@
                     <div class="icon-btn" onclick="document.getElementById('modal-add-friend').style.display='flex'" title="友達追加">
                         <span class="material-icons">person_add</span>
                     </div>
+                    <div class="icon-btn" onclick="logout()" title="ログアウト">
+                        <span class="material-icons" style="color:#d32f2f;">logout</span>
+                    </div>
                 </div>
             </div>
 
             <div class="scroll-list">
                 <div class="list-section">FRIENDS</div>
                 <div id="friend-list"></div>
-                
                 <div class="list-section">GROUPS</div>
                 <div id="group-list"></div>
             </div>
@@ -141,30 +131,22 @@
 
     <div id="modal-add-friend" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title">
-                <span class="material-icons">person_add</span> 友達を追加
-            </div>
+            <div class="modal-title"><span class="material-icons">person_add</span> 友達を追加</div>
             <input type="text" id="search-id" placeholder="相手のIDを入力" style="width:100%; margin-bottom:15px;">
             <button onclick="sendRequest()" style="width:100%;">申請を送る</button>
             <button class="secondary close-btn" onclick="closeModal('modal-add-friend')">キャンセル</button>
         </div>
     </div>
-
     <div id="modal-notif" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title">
-                <span class="material-icons">notifications</span> お知らせ
-            </div>
+            <div class="modal-title"><span class="material-icons">notifications</span> お知らせ</div>
             <div id="req-list"></div>
             <button class="secondary close-btn" onclick="closeModal('modal-notif')">閉じる</button>
         </div>
     </div>
-
     <div id="modal-create-group" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title">
-                <span class="material-icons">groups</span> グループ作成
-            </div>
+            <div class="modal-title"><span class="material-icons">groups</span> グループ作成</div>
             <input type="text" id="group-name" placeholder="グループ名" style="width:100%; margin-bottom:15px;">
             <p style="font-size:0.85rem; color:#666; margin-bottom:5px;">メンバーを選択:</p>
             <div class="check-list" id="group-member-list"></div>
@@ -198,6 +180,15 @@
         let myFriends = [];
         let allMessages = [];
 
+        // ★起動時に自動ログインチェック
+        window.onload = () => {
+            const savedId = localStorage.getItem("my_chat_id");
+            if(savedId) {
+                // 保存されたIDがあればパスワード入力を飛ばしてログイン
+                success(savedId);
+            }
+        };
+
         // --- ログイン ---
         window.authLogin = async () => {
             const id = document.getElementById('login-id').value.trim();
@@ -220,24 +211,32 @@
 
         function success(id) {
             myId = id;
+            // ★ログイン成功時にIDをブラウザに保存
+            localStorage.setItem("my_chat_id", id);
+
             document.getElementById('my-name-disp').innerText = id;
             document.getElementById('login-screen').style.display='none';
             document.getElementById('main-screen').style.display='flex';
             startListeners();
         }
 
+        // ★ログアウト機能
+        window.logout = () => {
+            if(confirm("ログアウトしますか？")) {
+                localStorage.removeItem("my_chat_id"); // 保存データを消す
+                location.reload(); // 画面を再読み込みしてログイン画面へ
+            }
+        };
+
+        // --- 以下、チャット機能（変更なし） ---
         function startListeners() {
-            // 友達リスト
             onSnapshot(doc(db, "users", myId), (doc) => {
                 myFriends = doc.data().friends || [];
                 renderFriends();
             });
-
-            // 通知（友達申請）
             onSnapshot(query(collection(db, "requests"), where("to", "==", myId), where("status", "==", "pending")), (snap) => {
                 const list = document.getElementById('req-list');
                 const badge = document.getElementById('notif-badge');
-                
                 list.innerHTML = "";
                 if(snap.empty) {
                     badge.classList.remove('active');
@@ -260,8 +259,6 @@
                     });
                 }
             });
-
-            // グループ
             onSnapshot(query(collection(db, "groups"), where("members", "array-contains", myId)), (snap) => {
                 const list = document.getElementById('group-list');
                 list.innerHTML = "";
@@ -269,15 +266,11 @@
                     const g = d.data();
                     const div = document.createElement('div');
                     div.className = `item-row ${currentChatId === d.id ? 'active' : ''}`;
-                    div.innerHTML = `
-                        <div class="item-name"><span class="material-icons" style="color:#666;">groups</span> ${g.name}</div>
-                    `;
+                    div.innerHTML = `<div class="item-name"><span class="material-icons" style="color:#666;">groups</span> ${g.name}</div>`;
                     div.onclick = () => selectChat(d.id, 'group', g.name);
                     list.appendChild(div);
                 });
             });
-
-            // メッセージ
             onSnapshot(query(collection(db, "messages"), orderBy("timestamp", "asc")), (snap) => {
                 allMessages = [];
                 snap.forEach(d => allMessages.push({ id: d.id, ...d.data() }));
@@ -342,9 +335,7 @@
             }
             myFriends.forEach(fid => {
                 list.innerHTML += `
-                    <label class="check-item">
-                        <input type="checkbox" value="${fid}"> ${fid}
-                    </label>`;
+                    <label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`;
             });
             document.getElementById('modal-create-group').style.display='flex';
         };
@@ -367,7 +358,7 @@
                 <span class="material-icons" style="font-size:20px; color:#000; margin-right:5px;">${type==='group'?'groups':'person'}</span> ${name}`;
             document.getElementById('chat-title').style.color = "#000";
             document.getElementById('input-area').style.visibility = 'visible';
-            renderFriends(); // リストの色更新
+            renderFriends();
             renderMessages();
             if(type === 'user') markRead(id);
         }
@@ -375,7 +366,6 @@
         function renderMessages() {
             const container = document.getElementById('messages-container');
             container.innerHTML = "";
-            
             let chats = [];
             if (currentChatType === 'user') {
                 chats = allMessages.filter(m => 
@@ -385,16 +375,12 @@
             } else {
                 chats = allMessages.filter(m => m.to === currentChatId && m.isGroup);
             }
-
             chats.forEach(m => {
                 const isMe = m.from === myId;
                 const div = document.createElement('div');
                 div.className = `msg ${isMe ? 'sent' : 'received'}`;
-                
                 let content = "";
-                if(m.image) {
-                    content += `<img src="${m.image}" onclick="window.open(this.src)">`;
-                }
+                if(m.image) content += `<img src="${m.image}" onclick="window.open(this.src)">`;
                 if(m.text) {
                     if (m.text.includes('youtube.com') || m.text.includes('youtu.be')) {
                         let vidId = m.text.split('v=')[1] || m.text.split('/').pop();
@@ -406,11 +392,9 @@
                         content += `<div>${m.text}</div>`;
                     }
                 }
-
                 let info = "";
                 if(!isMe && currentChatType === 'group') info = `<div class="sender-name">${m.from}</div>`;
                 if(isMe && currentChatType === 'user') info += `<div class="read-mark ${m.isRead?'visible':''}">既読</div>`;
-
                 div.innerHTML = info + `<div class="bubble">${content}</div>`;
                 container.appendChild(div);
             });
@@ -420,15 +404,13 @@
         window.sendImage = (input) => {
             const file = input.files[0];
             if(!file) return;
-            if(file.size > 500000) { // 500KB
+            if(file.size > 500000) {
                 alert("画像サイズが大きすぎます(500KB以下推奨)");
                 input.value = "";
                 return;
             }
             const reader = new FileReader();
-            reader.onload = async (e) => {
-                await sendMessageData("", e.target.result);
-            };
+            reader.onload = async (e) => { await sendMessageData("", e.target.result); };
             reader.readAsDataURL(file);
             input.value = "";
         };
@@ -462,8 +444,6 @@
         }
 
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
-        
-        // Enterキー送信
         document.getElementById('msg-input').addEventListener('keypress', (e) => {
             if(e.key === 'Enter') window.sendMessage();
         });
