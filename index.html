@@ -55,34 +55,27 @@
         .group-actions { display: none; gap: 5px; }
         #call-btn { display: none; } 
 
-        /* ★ここからデザイン変更★ */
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #ffffff; } /* 背景を白に */
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #ffffff; }
         
         .msg { display: flex; flex-direction: column; max-width: 85%; position: relative; }
         .msg.sent { align-self: flex-end; align-items: flex-end; }
         .msg.received { align-self: flex-start; align-items: flex-start; }
         
         .bubble { padding: 10px 14px; line-height: 1.5; word-break: break-all; border-radius: 15px; font-size: 0.95rem; position: relative; }
-        /* 自分のメッセージ：黒背景・白文字 */
         .sent .bubble { background: #000000; color: #ffffff; } 
-        /* 相手のメッセージ：薄グレー背景・黒文字 */
         .received .bubble { background: #f2f2f2; color: #000000; }
         .bubble img, .bubble video, .bubble iframe { max-width: 100%; border-radius: 8px; margin-top: 5px; }
 
-        /* 送信者名の色をグレーに変更 */
         .sender-name { font-size: 0.75rem; color: #888; margin-bottom: 4px; margin-left: 4px; font-weight: 500; }
         
-        /* 既読・時間の文字色をグレーに変更 */
         .read-container { position: absolute; left: -40px; bottom: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; height: 100%; }
         .read-mark { font-size: 0.65rem; color: #888; visibility: hidden; font-weight: bold; }
         .read-mark.visible { visibility: visible; }
         .msg-time { font-size: 0.65rem; color: #888; margin-top: 2px; }
-        /* ★ここまでデザイン変更★ */
 
         .input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; visibility: hidden; align-items: center; background: #fff; }
         .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; }
         
-        /* モーダル共通 */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
         .modal-box { background: #fff; padding: 30px; width: 90%; max-width: 380px; max-height: 80vh; overflow-y: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .modal-title { font-weight: bold; font-size: 1.2rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
@@ -90,11 +83,15 @@
         .check-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
         .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
 
-        /* 通話画面 */
+        /* --- 音声通話画面 --- */
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        #remote-video { width: 100%; height: 100%; object-fit: cover; position: absolute; }
-        #local-video { width: 100px; height: 150px; object-fit: cover; position: absolute; bottom: 20px; right: 20px; border-radius: 10px; border: 2px solid #fff; z-index: 3010; background: #333; }
-        .call-controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
+        /* 音声のみなのでvideoタグは非表示（音声再生用） */
+        #remote-audio { display: none; }
+        
+        /* 通話中のアイコンと名前 */
+        .call-avatar { width: 100px; height: 100px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 2px solid #fff; }
+        
+        .call-controls { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
         .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
         .btn-hangup { background: #d32f2f; }
         
@@ -193,9 +190,13 @@
     </div>
 
     <div id="call-screen">
-        <video id="remote-video" autoplay playsinline></video>
-        <video id="local-video" autoplay playsinline muted></video>
-        <div style="position:absolute; top:20px; color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000;" id="call-status-text">通話中...</div>
+        <audio id="remote-audio" autoplay playsinline></audio>
+        
+        <div class="call-avatar">
+            <span class="material-icons" style="font-size: 50px; color: #fff;">person</span>
+        </div>
+        <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 10px;" id="call-status-text">呼び出し中...</div>
+        
         <div class="call-controls">
             <div class="call-btn-circle btn-hangup" onclick="endCall()">
                 <span class="material-icons" style="font-size:30px;">call_end</span>
@@ -289,7 +290,6 @@
         let myFriends = [];
         let allMessages = [];
 
-        // 通話用変数
         let peer = null;
         let currentCall = null;
         let localStream = null;
@@ -361,52 +361,67 @@
             });
             peer.on('error', (err) => {
                 console.error(err);
-                if(err.type === 'peer-unavailable') { alert("相手がオフラインか、通話機能を開いていません。"); endCall(); }
+                if(err.type === 'peer-unavailable') { alert("相手がオフラインです"); endCall(); }
             });
         }
 
+        // ★★★ 電話をかける（音声のみ） ★★★
         window.startCall = async () => {
             if(!currentChatId || currentChatType !== 'user') return;
             const targetPeerId = currentChatId.replace(/[^a-zA-Z0-9]/g, '_');
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById('local-video').srcObject = localStream;
+                // video: false にすることでマイクのみ許可を求める
+                localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('call-status-text').innerText = "呼び出し中...";
+                
                 const call = peer.call(targetPeerId, localStream);
                 handleCallStream(call);
                 currentCall = call;
-            } catch(e) { alert("カメラ・マイクの使用を許可してください"); console.error(e); }
+            } catch(e) {
+                // 許可されなかった場合のエラー処理
+                alert("マイクの許可が必要です。\nブラウザの設定（URLバーの鍵マーク等）からマイクを許可して、ページを更新してください。");
+                console.error(e);
+            }
         };
 
+        // ★★★ 電話に出る（音声のみ） ★★★
         window.answerCall = async () => {
             document.getElementById('incoming-call-modal').style.display = 'none';
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById('local-video').srcObject = localStream;
+                localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('call-status-text').innerText = "通話中";
+                
                 currentCall.answer(localStream);
                 handleCallStream(currentCall);
-            } catch(e) { alert("カメラ・マイクの許可が必要です"); rejectCall(); }
+            } catch(e) {
+                alert("マイクの許可が必要です。設定を確認してください。");
+                rejectCall();
+            }
         };
 
         window.rejectCall = () => { if(currentCall) currentCall.close(); document.getElementById('incoming-call-modal').style.display = 'none'; };
+        
         window.endCall = () => {
             if(currentCall) currentCall.close();
             if(localStream) localStream.getTracks().forEach(track => track.stop());
             document.getElementById('call-screen').style.display = 'none';
-            document.getElementById('remote-video').srcObject = null;
+            document.getElementById('remote-audio').srcObject = null;
         };
+        
         function handleCallStream(call) {
             call.on('stream', (remoteStream) => {
-                document.getElementById('remote-video').srcObject = remoteStream;
+                // 音声タグにストリームをセット
+                document.getElementById('remote-audio').srcObject = remoteStream;
                 document.getElementById('call-status-text').innerText = "通話中";
             });
             call.on('close', () => { endCall(); });
         }
 
-        // --- 設定・チャット機能 ---
+        // --- その他の関数 ---
         window.openSettingsModal = () => {
             document.getElementById('settings-display-name').value = myDisplayName;
             document.getElementById('modal-settings').style.display = 'flex';
@@ -502,7 +517,6 @@
             container.scrollTop = container.scrollHeight;
         }
         
-        // その他の関数（省略なし）
         window.sendRequest = async () => { const to = document.getElementById('search-id').value.trim(); if(!to || to === myId) return alert("無効なIDです"); await addDoc(collection(db, "requests"), { from: myId, to: to, status: "pending" }); alert("送信しました"); closeModal('modal-add-friend'); };
         window.ansReq = async (rid, from, ok) => { const batch = writeBatch(db); batch.update(doc(db, "requests", rid), { status: ok ? "accepted" : "rejected" }); if(ok) { batch.update(doc(db, "users", myId), { friends: arrayUnion(from) }); batch.update(doc(db, "users", from), { friends: arrayUnion(myId) }); } await batch.commit(); };
         window.deleteFriend = async (fid, e) => { e.stopPropagation(); if(!confirm(fid + " を削除しますか？")) return; const batch = writeBatch(db); batch.update(doc(db, "users", myId), { friends: arrayRemove(fid) }); batch.update(doc(db, "users", fid), { friends: arrayRemove(myId) }); await batch.commit(); if(currentChatId === fid) resetChatView(); };
