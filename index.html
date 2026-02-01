@@ -113,10 +113,17 @@
             text-align: center;
             border: 1px solid rgba(255,255,255,0.2);
             transition: all 0.3s;
+            position: relative;
         }
         .group-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 8px; border: 2px solid #fff; background: #999; }
         .group-card .name { color: #fff; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+        .group-card .status { font-size: 0.7rem; margin-bottom: 5px; }
+        .status-connecting { color: #ffeb3b; }
+        .status-connected { color: #4CAF50; }
         .group-card input[type=range] { width: 80%; }
+        
+        /* 再接続ボタン */
+        .reconnect-mini-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
 
         .call-controls { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
         .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
@@ -247,6 +254,8 @@
 
         <div id="group-call-ui"></div>
 
+        <div id="audio-container" style="display:none;"></div>
+
         <div class="call-controls">
             <div class="call-btn-circle btn-hangup" onclick="endCall()">
                 <span class="material-icons" style="font-size:30px;">call_end</span>
@@ -354,7 +363,7 @@
         let currentCall = null;
         let localStream = null;
         let groupCalls = []; 
-        let audioContext = null; // ★音量ブースト用★
+        let audioContext = null;
 
         window.onload = () => {
             const savedId = localStorage.getItem("my_chat_id");
@@ -419,6 +428,7 @@
             }
         };
 
+        // --- PeerJS ---
         function initPeer() {
             peer = new Peer(); 
             peer.on('open', async (id) => { 
@@ -442,7 +452,7 @@
             peer.on('disconnected', () => { peer.reconnect(); });
         }
 
-        // ★★★ 音量ブースト機能（Web Audio API） ★★★
+        // --- 音量ブースト機能 ---
         function getAudioContext() {
             if(!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -458,28 +468,29 @@
             const source = ctx.createMediaStreamSource(stream);
             const gainNode = ctx.createGain();
             
-            gainNode.gain.value = 1; // 初期音量
+            gainNode.gain.value = 1; 
             source.connect(gainNode);
             gainNode.connect(ctx.destination);
             
-            // スライダー連動
             if(slider) {
                 slider.value = 1;
                 slider.oninput = (e) => {
                     gainNode.gain.value = parseFloat(e.target.value);
                 };
             }
-            
-            // 保持しておく（GC対策）
             return { source, gainNode };
         }
 
-        // --- ★1対1通話★ ---
+        // --- 1対1通話 ---
         window.startCall = async () => {
             if(!currentChatId || currentChatType !== 'user') return;
             
-            const targetUser = usersCache[currentChatId];
-            if(!targetUser || !targetUser.peerId) {
+            // 最新のユーザー情報をキャッシュからでなくDBから直接とる（確実性重視）
+            const userSnap = await getDoc(doc(db, "users", currentChatId));
+            if(!userSnap.exists()) return;
+            const targetUser = userSnap.data();
+
+            if(!targetUser.peerId) {
                 alert("相手がオフラインです");
                 await sendMessageData("📞 相手がオフラインのためつながりませんでした", null, true);
                 return;
@@ -487,9 +498,8 @@
             const targetPeerId = targetUser.peerId;
 
             try {
-                getAudioContext(); // AudioContext準備
+                getAudioContext(); 
                 await sendMessageData("📞 電話をかけました", null, true);
-                
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
                 
                 document.getElementById('call-screen').style.display = 'flex';
@@ -508,7 +518,6 @@
 
                 const call = peer.call(targetPeerId, localStream);
                 if(!call) return alert("接続エラー");
-                
                 handleCallStream(call);
                 currentCall = call;
 
@@ -548,17 +557,15 @@
                 currentCall.close();
             }
             groupCalls.forEach(c => c.close()); groupCalls = [];
-            
             if(localStream) localStream.getTracks().forEach(track => track.stop());
+            
             document.getElementById('call-screen').style.display = 'none';
             document.getElementById('group-call-ui').innerHTML = ""; 
-            
             if(audioContext) audioContext.close().then(() => { audioContext = null; });
         };
         
         function handleCallStream(call) {
             call.on('stream', (remoteStream) => {
-                // 1対1 ブースト適用
                 createBoostedAudio(remoteStream, document.getElementById('single-call-volume'));
                 document.getElementById('call-status-text').innerText = "通話中";
             });
@@ -566,7 +573,7 @@
             call.on('error', () => endCall());
         }
 
-        // --- ★グループ通話（修正版）★ ---
+        // --- ★グループ通話★ ---
         window.joinGroupCall = async () => {
             if(!currentChatId || currentChatType !== 'group') return;
             try {
@@ -582,7 +589,7 @@
                 document.getElementById('group-call-ui').innerHTML = "";
                 document.getElementById('call-status-text').innerText = "グループ通話中";
                 
-                // 自分自身を追加
+                // 自分
                 addGroupParticipantUI(myId, null, true);
 
                 await updateDoc(doc(db, "groups", currentChatId), { activeVoiceUsers: arrayUnion(myId) });
@@ -600,39 +607,34 @@
             sendMessageData("📞 グループ通話を退出しました", null, true);
         };
 
-        // ★バグ修正：参加者リストの完全同期★
-        function handleGroupVoiceUpdate(activeUsers) {
+        // ★修正された同期ロジック★
+        async function handleGroupVoiceUpdate(activeUsers) {
             if(document.getElementById('btn-leave-group-call').style.display === 'none') return;
 
-            // 1. 新しい参加者への接続と表示
-            activeUsers.forEach(uid => {
-                // 自分はスキップ
-                if(uid === myId) return;
-                
-                // すでに表示されていればスキップ
-                if(document.getElementById('participant-' + uid)) return;
+            // 追加処理
+            for (const uid of activeUsers) {
+                if(uid === myId) continue;
+                if(document.getElementById('participant-' + uid)) continue;
 
-                // 新規接続
-                const targetUser = usersCache[uid];
-                if(targetUser && targetUser.peerId) {
-                    // ID大小比較で片方向から発信
+                // 最新情報を取得
+                const userSnap = await getDoc(doc(db, "users", uid));
+                if(!userSnap.exists()) continue;
+                const targetUser = userSnap.data();
+
+                if(targetUser.peerId) {
                     if(myId < uid) {
                         const call = peer.call(targetUser.peerId, localStream);
                         if(call) handleGroupStream(call, uid);
                     }
                 }
-            });
+            }
 
-            // 2. いなくなった参加者の削除（ここが修正点！）
+            // 削除処理
             const uiContainer = document.getElementById('group-call-ui');
             const cards = uiContainer.getElementsByClassName('group-card');
-            
-            // 後ろからループ（削除してもインデックスが狂わないように）
             for (let i = cards.length - 1; i >= 0; i--) {
                 const card = cards[i];
                 const uid = card.id.replace('participant-', '');
-                
-                // activeUsersに含まれていない、かつ自分ではない場合、削除
                 if (!activeUsers.includes(uid) && uid !== myId) {
                     card.remove();
                 }
@@ -651,6 +653,15 @@
             groupCalls.push(call);
         }
 
+        // 手動再接続用
+        window.retryConnect = async (uid) => {
+             const userSnap = await getDoc(doc(db, "users", uid));
+             if(userSnap.exists() && userSnap.data().peerId) {
+                 const call = peer.call(userSnap.data().peerId, localStream);
+                 if(call) handleGroupStream(call, uid);
+             }
+        };
+
         function addGroupParticipantUI(userId, stream, isSelf) {
             const container = document.getElementById('group-call-ui');
             if(document.getElementById('participant-' + userId)) return;
@@ -667,25 +678,35 @@
             }
 
             let controlHtml = '';
+            let statusHtml = '';
+
             if(!isSelf) {
-                // スライダーID作成
-                const sliderId = 'vol-' + userId;
-                controlHtml = `<input type="range" id="${sliderId}" min="0" max="3" step="0.1" value="1">`;
+                statusHtml = stream ? '<div class="status status-connected">● 接続中</div>' : '<div class="status status-connecting">● 接続試行中...</div>';
                 
-                // DOM追加後にイベント設定
+                const sliderId = 'vol-' + userId;
+                controlHtml = `
+                    <input type="range" id="${sliderId}" min="0" max="3" step="0.1" value="1">
+                    <button class="reconnect-mini-btn" onclick="retryConnect('${userId}')" title="再接続">
+                        <span class="material-icons" style="font-size:16px;">refresh</span>
+                    </button>`;
+                
                 setTimeout(() => {
                     const slider = document.getElementById(sliderId);
                     if(slider && stream) {
                         createBoostedAudio(stream, slider);
+                        // ステータス更新
+                        const statusEl = card.querySelector('.status');
+                        if(statusEl) { statusEl.className = 'status status-connected'; statusEl.innerText = '● 接続完了'; }
                     }
                 }, 0);
             } else {
-                controlHtml = `<span style="font-size:0.8rem; color:#aaa;">(自分)</span>`;
+                statusHtml = '<div class="status">自分</div>';
             }
 
             card.innerHTML = `
                 ${iconHtml}
                 <div class="name">${isSelf ? myDisplayName : user.displayName}</div>
+                ${statusHtml}
                 ${controlHtml}
             `;
             container.appendChild(card);
@@ -838,6 +859,13 @@
         window.openInviteModal = async () => { const gSnap = await getDoc(doc(db, "groups", currentChatId)); if(!gSnap.exists()) return; const list = document.getElementById('invite-member-list'); list.innerHTML = ""; const currentMembers = gSnap.data().members || []; myFriends.filter(fid => !currentMembers.includes(fid)).forEach(fid => list.innerHTML += `<label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`); document.getElementById('modal-invite-group').style.display='flex'; };
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
         document.getElementById('msg-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') window.sendMessage(); });
+        
+        // ページを閉じる時に通話から抜ける処理
+        window.onbeforeunload = () => {
+            if(document.getElementById('btn-leave-group-call').style.display !== 'none' && currentChatType === 'group') {
+                updateDoc(doc(db, "groups", currentChatId), { activeVoiceUsers: arrayRemove(myId) });
+            }
+        };
     </script>
 </body>
 </html>
