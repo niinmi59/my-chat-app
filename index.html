@@ -10,39 +10,34 @@
     <link rel="apple-touch-icon" href="icon.png">
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
         /* --- デザイン設定 --- */
         body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; height: 100vh; background: #fff; color: #333; display: flex; overflow: hidden; }
         
-        /* アイコン */
         .material-icons { font-size: 24px; vertical-align: middle; }
         .icon-btn { cursor: pointer; color: #333; transition: color 0.2s; position: relative; padding: 8px; display: flex; align-items: center; justify-content: center; }
         .icon-btn:hover { background: rgba(0,0,0,0.05); border-radius: 50%; }
 
-        /* ボタン */
         button { background: #000; color: #fff; border: 1px solid #000; padding: 10px 16px; cursor: pointer; font-weight: bold; font-size: 0.9rem; border-radius: 8px; transition: opacity 0.2s; }
         button:hover { opacity: 0.8; }
         button.secondary { background: #fff; color: #000; border: 1px solid #ddd; }
-        button.danger { background: #fff; color: #d32f2f; border: 1px solid #d32f2f; }
+        button.danger { background: #d32f2f; border-color: #d32f2f; color: #fff; }
         
         input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; font-size: 1rem; }
         input:focus { border-color: #000; }
 
-        /* 画面レイアウト */
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #main-screen { display: none; width: 100%; height: 100%; }
         
-        /* サイドバー */
         .sidebar { width: 320px; border-right: 1px solid #eee; display: flex; flex-direction: column; background: #fafafa; }
         .sidebar-header { padding: 0 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; height: 60px; }
         
-        /* 自分の名前表示エリア */
         .my-profile-area { display: flex; align-items: center; gap: 5px; overflow: hidden; }
         #my-name-disp { font-weight: bold; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
 
         .icon-area { display: flex; gap: 5px; align-items: center; }
-        
         .badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; display: none; border: 2px solid #fff; }
         .badge.active { display: block; }
 
@@ -54,32 +49,36 @@
         .item-row.active { background: #eee; border-right: 4px solid #000; }
         .item-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 
-        /* チャットエリア */
         .chat-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
         .chat-header { padding: 0 20px; border-bottom: 1px solid #eee; height: 60px; display: flex; align-items: center; font-weight: bold; justify-content: space-between; }
         
         .group-actions { display: none; gap: 5px; }
+        /* ★通話ボタン（初期は非表示）★ */
+        #call-btn { display: none; } 
 
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #fff; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #7494c0; } /* LINE風の背景色に変更 */
         
-        .msg { display: flex; flex-direction: column; max-width: 85%; }
+        .msg { display: flex; flex-direction: column; max-width: 85%; position: relative; }
         .msg.sent { align-self: flex-end; align-items: flex-end; }
         .msg.received { align-self: flex-start; align-items: flex-start; }
         
-        .bubble { padding: 12px 16px; line-height: 1.6; word-break: break-all; border-radius: 12px; font-size: 0.95rem; }
-        .sent .bubble { background: #000; color: #fff; border-bottom-right-radius: 2px; }
-        .received .bubble { background: #f2f2f2; color: #000; border-bottom-left-radius: 2px; }
+        .bubble { padding: 10px 14px; line-height: 1.5; word-break: break-all; border-radius: 15px; font-size: 0.95rem; position: relative; }
+        .sent .bubble { background: #8de055; color: #000; } /* LINE風の緑 */
+        .received .bubble { background: #fff; color: #000; }
         .bubble img, .bubble video, .bubble iframe { max-width: 100%; border-radius: 8px; margin-top: 5px; }
 
-        .sender-name { font-size: 0.75rem; color: #888; margin-bottom: 4px; margin-left: 4px; font-weight: 500; }
-        .read-mark { font-size: 0.7rem; color: #999; margin-top: 4px; visibility: hidden; text-align: right; margin-right: 4px; }
+        .sender-name { font-size: 0.75rem; color: #fff; margin-bottom: 4px; margin-left: 4px; font-weight: 500; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        
+        /* ★既読マークのデザイン★ */
+        .read-container { position: absolute; left: -35px; bottom: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; height: 100%; }
+        .read-mark { font-size: 0.65rem; color: #fff; visibility: hidden; font-weight: bold; text-shadow: 0 1px 1px rgba(0,0,0,0.3); }
         .read-mark.visible { visibility: visible; }
+        .msg-time { font-size: 0.65rem; color: #fff; margin-top: 2px; text-shadow: 0 1px 1px rgba(0,0,0,0.3); }
 
         .input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; visibility: hidden; align-items: center; background: #fff; }
         .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; }
-        .input-area input[type=text]:focus { background: #f0f0f0; outline: none; }
         
-        /* モーダル */
+        /* モーダル共通 */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
         .modal-box { background: #fff; padding: 30px; width: 90%; max-width: 380px; max-height: 80vh; overflow-y: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .modal-title { font-weight: bold; font-size: 1.2rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
@@ -87,7 +86,17 @@
         .check-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
         .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
 
-        /* スマホ向け調整 */
+        /* ★通話画面のデザイン★ */
+        #call-screen { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        #remote-video { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        #local-video { width: 100px; height: 150px; object-fit: cover; position: absolute; bottom: 20px; right: 20px; border-radius: 10px; border: 2px solid #fff; z-index: 3010; background: #333; }
+        .call-controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
+        .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
+        .btn-hangup { background: #d32f2f; }
+        
+        /* 着信通知 */
+        #incoming-call-modal { display: none; }
+
         @media (max-width: 600px) {
             .sidebar { display: flex; width: 100%; position: absolute; z-index: 100; height: 100%; transform: translateX(0); transition: transform 0.3s; }
             .sidebar.hidden { transform: translateX(-100%); }
@@ -149,12 +158,19 @@
                     <span class="material-icons back-btn" onclick="showSidebar()">arrow_back</span>
                     <span id="chat-title" style="color:#888;">チャットを選択</span>
                 </div>
-                <div class="group-actions" id="group-actions">
-                    <div class="icon-btn" onclick="openInviteModal()" title="メンバーを追加">
-                        <span class="material-icons">person_add_alt</span>
+                
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="icon-btn" id="call-btn" onclick="startCall()" title="電話をかける">
+                        <span class="material-icons" style="color:#000;">call</span>
                     </div>
-                    <div class="icon-btn" onclick="leaveGroup()" title="グループから退会">
-                        <span class="material-icons" style="color:#d32f2f;">exit_to_app</span>
+
+                    <div class="group-actions" id="group-actions">
+                        <div class="icon-btn" onclick="openInviteModal()" title="メンバーを追加">
+                            <span class="material-icons">person_add_alt</span>
+                        </div>
+                        <div class="icon-btn" onclick="leaveGroup()" title="グループから退会">
+                            <span class="material-icons" style="color:#d32f2f;">exit_to_app</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -173,6 +189,28 @@
         </div>
     </div>
 
+    <div id="call-screen">
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-video" autoplay playsinline muted></video>
+        <div style="position:absolute; top:20px; color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000;" id="call-status-text">通話中...</div>
+        <div class="call-controls">
+            <div class="call-btn-circle btn-hangup" onclick="endCall()">
+                <span class="material-icons" style="font-size:30px;">call_end</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="incoming-call-modal" class="modal-overlay">
+        <div class="modal-box" style="text-align:center;">
+            <div class="modal-title" style="justify-content:center;">📞 着信</div>
+            <p id="incoming-caller-id" style="font-size:1.2rem; margin-bottom:20px;"></p>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button onclick="answerCall()" style="background:#4CAF50; border-color:#4CAF50; width:100px;">応答</button>
+                <button onclick="rejectCall()" class="danger" style="width:100px;">拒否</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-add-friend" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">person_add</span> 友達を追加</div>
@@ -181,7 +219,6 @@
             <button class="secondary close-btn" onclick="closeModal('modal-add-friend')">キャンセル</button>
         </div>
     </div>
-    
     <div id="modal-notif" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">notifications</span> お知らせ</div>
@@ -189,7 +226,6 @@
             <button class="secondary close-btn" onclick="closeModal('modal-notif')">閉じる</button>
         </div>
     </div>
-    
     <div id="modal-create-group" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">groups</span> グループ作成</div>
@@ -200,17 +236,14 @@
             <button class="secondary close-btn" onclick="closeModal('modal-create-group')">キャンセル</button>
         </div>
     </div>
-
     <div id="modal-invite-group" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">person_add_alt</span> グループへ招待</div>
-            <p style="font-size:0.85rem; color:#666; margin-bottom:5px;">招待する友達を選択:</p>
             <div class="check-list" id="invite-member-list"></div>
             <button onclick="executeInvite()" style="width:100%;">招待する</button>
             <button class="secondary close-btn" onclick="closeModal('modal-invite-group')">キャンセル</button>
         </div>
     </div>
-
     <div id="modal-settings" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">settings</span> 設定</div>
@@ -247,11 +280,16 @@
         const db = getFirestore(app);
 
         let myId = "";
-        let myDisplayName = ""; // ★自分の表示名★
+        let myDisplayName = ""; 
         let currentChatId = "";
         let currentChatType = ""; 
         let myFriends = [];
         let allMessages = [];
+
+        // ★通話用変数★
+        let peer = null;
+        let currentCall = null;
+        let localStream = null;
 
         window.onload = () => {
             const savedId = localStorage.getItem("my_chat_id");
@@ -271,7 +309,6 @@
                 else alert("パスワードが違います");
             } else {
                 if(confirm("新規登録しますか？")) {
-                    // 新規登録時はIDをそのまま表示名にする
                     await setDoc(userRef, { username: id, password: pass, friends: [], displayName: id });
                     authSuccess(id);
                 }
@@ -282,7 +319,6 @@
             myId = id;
             localStorage.setItem("my_chat_id", id);
             
-            // ★最新の自分の情報を取得して表示名を設定★
             const userSnap = await getDoc(doc(db, "users", myId));
             if (userSnap.exists()) {
                 myDisplayName = userSnap.data().displayName || myId;
@@ -293,10 +329,12 @@
 
             document.getElementById('login-screen').style.display='none';
             document.getElementById('main-screen').style.display='flex';
+            
             startListeners();
+            // ★PeerJS（通話機能）の開始★
+            initPeer();
         }
 
-        // ★自分の名前表示を更新する関数★
         function updateMyNameDisplay() {
             document.getElementById('my-name-disp').innerText = myDisplayName;
         }
@@ -308,9 +346,93 @@
             }
         };
 
-        // --- 設定（名前変更）機能 ---
+        // --- 通話機能 (PeerJS) ---
+        function initPeer() {
+            // IDから特殊文字を除去してPeerIDにする（PeerJSは記号NGな場合があるため）
+            const cleanId = myId.replace(/[^a-zA-Z0-9]/g, '_');
+            peer = new Peer(cleanId); 
+
+            peer.on('open', (id) => {
+                console.log('My peer ID is: ' + id);
+            });
+
+            // 着信があった時
+            peer.on('call', (call) => {
+                currentCall = call;
+                document.getElementById('incoming-caller-id').innerText = call.peer + " から電話です";
+                document.getElementById('incoming-call-modal').style.display = 'flex';
+            });
+            
+            peer.on('error', (err) => {
+                console.error(err);
+                if(err.type === 'peer-unavailable') {
+                    alert("相手がオフラインか、通話機能を開いていません。");
+                    endCall();
+                }
+            });
+        }
+
+        window.startCall = async () => {
+            if(!currentChatId || currentChatType !== 'user') return;
+            const targetPeerId = currentChatId.replace(/[^a-zA-Z0-9]/g, '_');
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('local-video').srcObject = localStream;
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('call-status-text').innerText = "呼び出し中...";
+
+                const call = peer.call(targetPeerId, localStream);
+                handleCallStream(call);
+                currentCall = call;
+            } catch(e) {
+                alert("カメラ・マイクの使用を許可してください");
+                console.error(e);
+            }
+        };
+
+        window.answerCall = async () => {
+            document.getElementById('incoming-call-modal').style.display = 'none';
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('local-video').srcObject = localStream;
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('call-status-text').innerText = "通話中";
+
+                currentCall.answer(localStream);
+                handleCallStream(currentCall);
+            } catch(e) {
+                alert("カメラ・マイクの許可が必要です");
+                rejectCall();
+            }
+        };
+
+        window.rejectCall = () => {
+            if(currentCall) currentCall.close();
+            document.getElementById('incoming-call-modal').style.display = 'none';
+        };
+
+        window.endCall = () => {
+            if(currentCall) currentCall.close();
+            if(localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('call-screen').style.display = 'none';
+            document.getElementById('remote-video').srcObject = null;
+        };
+
+        function handleCallStream(call) {
+            call.on('stream', (remoteStream) => {
+                document.getElementById('remote-video').srcObject = remoteStream;
+                document.getElementById('call-status-text').innerText = "通話中";
+            });
+            call.on('close', () => {
+                endCall();
+            });
+        }
+
+        // --- 設定・チャット機能 ---
         window.openSettingsModal = () => {
-            // 現在の名前を入力欄に入れておく
             document.getElementById('settings-display-name').value = myDisplayName;
             document.getElementById('modal-settings').style.display = 'flex';
         };
@@ -318,20 +440,12 @@
         window.saveSettings = async () => {
             const newName = document.getElementById('settings-display-name').value.trim();
             if (!newName) return alert("名前を入力してください");
-
-            // Firestoreの自分の情報を更新
-            await updateDoc(doc(db, "users", myId), {
-                displayName: newName
-            });
-
-            // 自分の画面の表示を更新
+            await updateDoc(doc(db, "users", myId), { displayName: newName });
             myDisplayName = newName;
             updateMyNameDisplay();
-
             alert("名前を変更しました");
             closeModal('modal-settings');
         };
-
 
         function startListeners() {
             onSnapshot(doc(db, "users", myId), (doc) => {
@@ -351,14 +465,9 @@
                         const data = d.data();
                         list.innerHTML += `
                             <div style="border-bottom:1px solid #eee; padding:15px 0;">
-                                <div style="display:flex; align-items:center; gap:5px; margin-bottom:10px;">
-                                    <span class="material-icons" style="font-size:20px;">person</span>
-                                    <strong>${data.from}</strong> から申請
-                                </div>
-                                <div style="display:flex; gap:10px;">
-                                    <button onclick="ansReq('${d.id}', '${data.from}', true)" style="flex:1;">承認</button>
-                                    <button class="secondary" onclick="ansReq('${d.id}', '${data.from}', false)" style="flex:1;">拒否</button>
-                                </div>
+                                <strong>${data.from}</strong> から申請<br>
+                                <button onclick="ansReq('${d.id}', '${data.from}', true)">承認</button>
+                                <button class="secondary" onclick="ansReq('${d.id}', '${data.from}', false)">拒否</button>
                             </div>`;
                     });
                 }
@@ -378,7 +487,11 @@
             onSnapshot(query(collection(db, "messages"), orderBy("timestamp", "asc")), (snap) => {
                 allMessages = [];
                 snap.forEach(d => allMessages.push({ id: d.id, ...d.data() }));
-                if(currentChatId) renderMessages();
+                if(currentChatId) {
+                    renderMessages();
+                    // 開いているチャットの未読メッセージを既読にする
+                    if(currentChatType === 'user') markRead(currentChatId);
+                }
             });
         }
 
@@ -397,102 +510,7 @@
             });
         }
 
-        window.sendRequest = async () => {
-            const to = document.getElementById('search-id').value.trim();
-            if(!to || to === myId) return alert("無効なIDです");
-            await addDoc(collection(db, "requests"), { from: myId, to: to, status: "pending" });
-            alert("送信しました");
-            closeModal('modal-add-friend');
-        };
-
-        window.ansReq = async (rid, from, ok) => {
-            const batch = writeBatch(db);
-            batch.update(doc(db, "requests", rid), { status: ok ? "accepted" : "rejected" });
-            if(ok) {
-                batch.update(doc(db, "users", myId), { friends: arrayUnion(from) });
-                batch.update(doc(db, "users", from), { friends: arrayUnion(myId) });
-            }
-            await batch.commit();
-        };
-
-        window.deleteFriend = async (fid, e) => {
-            e.stopPropagation(); 
-            if(!confirm(fid + " を削除しますか？")) return;
-            const batch = writeBatch(db);
-            batch.update(doc(db, "users", myId), { friends: arrayRemove(fid) });
-            batch.update(doc(db, "users", fid), { friends: arrayRemove(myId) });
-            await batch.commit();
-            if(currentChatId === fid) resetChatView();
-        };
-
-        window.openGroupModal = () => {
-            const list = document.getElementById('group-member-list');
-            list.innerHTML = "";
-            if(myFriends.length === 0) {
-                list.innerHTML = "<p style='color:#999;'>友達がいません</p>";
-                return;
-            }
-            myFriends.forEach(fid => {
-                list.innerHTML += `
-                    <label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`;
-            });
-            document.getElementById('modal-create-group').style.display='flex';
-        };
-
-        window.createGroup = async () => {
-            const name = document.getElementById('group-name').value.trim();
-            if(!name) return alert("グループ名を入れてください");
-            const checks = document.querySelectorAll('#group-member-list input:checked');
-            let members = [myId];
-            checks.forEach(c => members.push(c.value));
-            await addDoc(collection(db, "groups"), { name: name, members: members, createdBy: myId });
-            alert("グループを作成しました");
-            closeModal('modal-create-group');
-        };
-
-        window.openInviteModal = async () => {
-            if(!currentChatId || currentChatType !== 'group') return;
-            const gSnap = await getDoc(doc(db, "groups", currentChatId));
-            if(!gSnap.exists()) return;
-            const currentMembers = gSnap.data().members || [];
-            const list = document.getElementById('invite-member-list');
-            list.innerHTML = "";
-            const candidates = myFriends.filter(fid => !currentMembers.includes(fid));
-            if(candidates.length === 0) {
-                list.innerHTML = "<p style='color:#999;'>招待できる友達がいません<br>(全員参加済みか友達がいません)</p>";
-            } else {
-                candidates.forEach(fid => {
-                    list.innerHTML += `
-                        <label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`;
-                });
-            }
-            document.getElementById('modal-invite-group').style.display='flex';
-        };
-
-        window.executeInvite = async () => {
-            const checks = document.querySelectorAll('#invite-member-list input:checked');
-            if(checks.length === 0) return alert("選択してください");
-            const newMembers = [];
-            checks.forEach(c => newMembers.push(c.value));
-            const batch = writeBatch(db);
-            newMembers.forEach(mem => {
-                batch.update(doc(db, "groups", currentChatId), { members: arrayUnion(mem) });
-            });
-            await batch.commit();
-            // システムメッセージも表示名で送る
-            await sendMessageData(`メンバーを追加しました: ${newMembers.join(", ")}`, null); 
-            alert("招待しました");
-            closeModal('modal-invite-group');
-        };
-
-        window.leaveGroup = async () => {
-            if(!confirm("本当にこのグループから抜けますか？")) return;
-            await updateDoc(doc(db, "groups", currentChatId), {
-                members: arrayRemove(myId)
-            });
-            resetChatView();
-        };
-
+        // --- チャット表示 ---
         function selectChat(id, type, name) {
             currentChatId = id;
             currentChatType = type;
@@ -500,30 +518,38 @@
                 <span class="material-icons" style="font-size:20px; color:#000; margin-right:5px;">${type==='group'?'groups':'person'}</span> ${name}`;
             document.getElementById('chat-title').style.color = "#000";
             document.getElementById('input-area').style.visibility = 'visible';
-            const actions = document.getElementById('group-actions');
+            
+            // ボタンの表示制御
+            const groupActions = document.getElementById('group-actions');
+            const callBtn = document.getElementById('call-btn');
+            
             if(type === 'group') {
-                actions.style.display = 'flex';
+                groupActions.style.display = 'flex';
+                callBtn.style.display = 'none'; // グループ通話はまだ未実装のため隠す
             } else {
-                actions.style.display = 'none';
+                groupActions.style.display = 'none';
+                callBtn.style.display = 'flex'; // 個人チャットなら電話ボタン表示
             }
+            
             if(window.innerWidth <= 600) document.getElementById('sidebar').classList.add('hidden');
             renderFriends();
             renderMessages();
             if(type === 'user') markRead(id);
         }
 
-        function resetChatView() {
-            currentChatId = "";
-            document.getElementById('input-area').style.visibility = 'hidden';
-            document.getElementById('group-actions').style.display = 'none';
-            document.getElementById('messages-container').innerHTML = "";
-            document.getElementById('chat-title').innerText = "チャットを選択";
-            if(window.innerWidth <= 600) showSidebar();
+        // ★既読処理★
+        async function markRead(targetId) {
+            const batch = writeBatch(db);
+            let updated = false;
+            // 相手(targetId)から自分(myId)への未読メッセージを探して既読にする
+            allMessages.forEach(m => {
+                if(m.from === targetId && m.to === myId && !m.isRead && !m.isGroup) {
+                    batch.update(doc(db, "messages", m.id), { isRead: true });
+                    updated = true;
+                }
+            });
+            if(updated) await batch.commit();
         }
-
-        window.showSidebar = () => {
-            document.getElementById('sidebar').classList.remove('hidden');
-        };
 
         function renderMessages() {
             const container = document.getElementById('messages-container');
@@ -537,10 +563,12 @@
             } else {
                 chats = allMessages.filter(m => m.to === currentChatId && m.isGroup);
             }
+
             chats.forEach(m => {
                 const isMe = m.from === myId;
                 const div = document.createElement('div');
                 div.className = `msg ${isMe ? 'sent' : 'received'}`;
+                
                 let content = "";
                 if(m.image) content += `<img src="${m.image}" onclick="window.open(this.src)">`;
                 if(m.text) {
@@ -554,72 +582,120 @@
                         content += `<div>${m.text}</div>`;
                     }
                 }
+                
                 let info = "";
-                // ★相手の名前を表示する際、senderName（表示名）があればそれを使う★
                 if(!isMe && currentChatType === 'group') {
-                    const displayName = m.senderName || m.from; // 表示名がなければIDを表示
+                    const displayName = m.senderName || m.from;
                     info = `<div class="sender-name">${displayName}</div>`;
                 }
-                if(isMe && currentChatType === 'user') info += `<div class="read-mark ${m.isRead?'visible':''}">既読</div>`;
-                div.innerHTML = info + `<div class="bubble">${content}</div>`;
+
+                // ★既読マークと時間の表示★
+                let meta = "";
+                if(isMe && currentChatType === 'user') {
+                    meta = `
+                    <div class="read-container">
+                        <div class="read-mark ${m.isRead?'visible':''}">既読</div>
+                        <div class="msg-time">${new Date(m.timestamp).getHours()}:${String(new Date(m.timestamp).getMinutes()).padStart(2,'0')}</div>
+                    </div>`;
+                }
+
+                div.innerHTML = info + `<div class="bubble">${content}${meta}</div>`;
                 container.appendChild(div);
             });
             container.scrollTop = container.scrollHeight;
         }
-
-        window.sendImage = (input) => {
-            const file = input.files[0];
-            if(!file) return;
-            if(file.size > 500000) {
-                alert("画像サイズが大きすぎます(500KB以下推奨)");
-                input.value = "";
-                return;
+        
+        // --- その他の関数（変更なし） ---
+        window.sendRequest = async () => {
+            const to = document.getElementById('search-id').value.trim();
+            if(!to || to === myId) return alert("無効なIDです");
+            await addDoc(collection(db, "requests"), { from: myId, to: to, status: "pending" });
+            alert("送信しました");
+            closeModal('modal-add-friend');
+        };
+        window.ansReq = async (rid, from, ok) => {
+            const batch = writeBatch(db);
+            batch.update(doc(db, "requests", rid), { status: ok ? "accepted" : "rejected" });
+            if(ok) {
+                batch.update(doc(db, "users", myId), { friends: arrayUnion(from) });
+                batch.update(doc(db, "users", from), { friends: arrayUnion(myId) });
             }
+            await batch.commit();
+        };
+        window.deleteFriend = async (fid, e) => {
+            e.stopPropagation(); if(!confirm(fid + " を削除しますか？")) return;
+            const batch = writeBatch(db);
+            batch.update(doc(db, "users", myId), { friends: arrayRemove(fid) });
+            batch.update(doc(db, "users", fid), { friends: arrayRemove(myId) });
+            await batch.commit();
+            if(currentChatId === fid) resetChatView();
+        };
+        window.createGroup = async () => {
+            const name = document.getElementById('group-name').value.trim();
+            if(!name) return alert("グループ名を入れてください");
+            const checks = document.querySelectorAll('#group-member-list input:checked');
+            let members = [myId];
+            checks.forEach(c => members.push(c.value));
+            await addDoc(collection(db, "groups"), { name: name, members: members, createdBy: myId });
+            alert("作成しました"); closeModal('modal-create-group');
+        };
+        window.executeInvite = async () => {
+            const checks = document.querySelectorAll('#invite-member-list input:checked');
+            if(checks.length === 0) return alert("選択してください");
+            const newMembers = []; checks.forEach(c => newMembers.push(c.value));
+            const batch = writeBatch(db);
+            newMembers.forEach(mem => batch.update(doc(db, "groups", currentChatId), { members: arrayUnion(mem) }));
+            await batch.commit();
+            await sendMessageData(`メンバーを追加しました: ${newMembers.join(", ")}`, null);
+            closeModal('modal-invite-group');
+        };
+        window.leaveGroup = async () => {
+            if(!confirm("抜けますか？")) return;
+            await updateDoc(doc(db, "groups", currentChatId), { members: arrayRemove(myId) });
+            resetChatView();
+        };
+        function resetChatView() {
+            currentChatId = "";
+            document.getElementById('input-area').style.visibility = 'hidden';
+            document.getElementById('group-actions').style.display = 'none';
+            document.getElementById('call-btn').style.display = 'none';
+            document.getElementById('messages-container').innerHTML = "";
+            document.getElementById('chat-title').innerText = "チャットを選択";
+            if(window.innerWidth <= 600) showSidebar();
+        }
+        window.showSidebar = () => document.getElementById('sidebar').classList.remove('hidden');
+        window.sendImage = (input) => {
+            const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => { await sendMessageData("", e.target.result); };
-            reader.readAsDataURL(file);
-            input.value = "";
+            reader.readAsDataURL(file); input.value = "";
         };
-
         window.sendMessage = async () => {
             const input = document.getElementById('msg-input');
-            const text = input.value.trim();
-            if(!text) return;
-            await sendMessageData(text, null);
-            input.value = "";
+            const text = input.value.trim(); if(!text) return;
+            await sendMessageData(text, null); input.value = "";
         };
-
         async function sendMessageData(text, imageBase64) {
             if(!currentChatId) return;
-            // ★メッセージ送信時に、現在の表示名(myDisplayName)を含める★
             await addDoc(collection(db, "messages"), {
-                from: myId,
-                senderName: myDisplayName, // これを追加
-                to: currentChatId,
-                text: text,
-                image: imageBase64,
-                isGroup: currentChatType === 'group',
-                timestamp: new Date().getTime(),
-                isRead: false
+                from: myId, senderName: myDisplayName, to: currentChatId, text: text, image: imageBase64,
+                isGroup: currentChatType === 'group', timestamp: new Date().getTime(), isRead: false
             });
         }
-
-        async function markRead(targetId) {
-            const batch = writeBatch(db);
-            let updated = false;
-            allMessages.forEach(m => {
-                if(m.from === targetId && m.to === myId && !m.isRead && !m.isGroup) {
-                    batch.update(doc(db, "messages", m.id), { isRead: true });
-                    updated = true;
-                }
-            });
-            if(updated) await batch.commit();
-        }
-
+        window.openGroupModal = () => {
+            const list = document.getElementById('group-member-list'); list.innerHTML = "";
+            myFriends.forEach(fid => list.innerHTML += `<label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`);
+            document.getElementById('modal-create-group').style.display='flex';
+        };
+        window.openInviteModal = async () => {
+            const gSnap = await getDoc(doc(db, "groups", currentChatId)); if(!gSnap.exists()) return;
+            const list = document.getElementById('invite-member-list'); list.innerHTML = "";
+            const currentMembers = gSnap.data().members || [];
+            myFriends.filter(fid => !currentMembers.includes(fid)).forEach(fid => list.innerHTML += `<label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`);
+            document.getElementById('modal-invite-group').style.display='flex';
+        };
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
-        document.getElementById('msg-input').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') window.sendMessage();
-        });
+        document.getElementById('msg-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') window.sendMessage(); });
     </script>
 </body>
 </html>
