@@ -29,8 +29,7 @@
         
         input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; font-size: 1rem; }
         input:focus { border-color: #000; }
-        /* 音量スライダー */
-        input[type=range] { padding: 0; margin: 10px 0; width: 100%; cursor: pointer; }
+        input[type=range] { padding: 0; margin: 5px 0; width: 100%; cursor: pointer; }
 
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #main-screen { display: none; width: 100%; height: 100%; }
@@ -95,20 +94,30 @@
         /* --- 通話画面 --- */
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
         
-        /* 1対1通話用UI */
+        /* 1対1通話UI */
         #single-call-ui { display: flex; flex-direction: column; align-items: center; width: 100%; }
         .call-avatar-large { width: 120px; height: 120px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; border: 3px solid #fff; overflow: hidden; }
         .call-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* グループ通話用UI（参加者リスト） */
-        #group-call-ui { display: none; width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
-        .group-participant { display: flex; align-items: center; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; gap: 10px; }
-        .group-participant img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-        .group-participant .info { flex: 1; color: #fff; }
-        .group-participant .info .name { font-weight: bold; font-size: 0.9rem; }
-        .group-participant input[type=range] { width: 80px; margin: 0; }
+        /* ★グループ通話UI（タイル表示）★ */
+        #group-call-ui { display: none; width: 100%; height: 70%; padding: 20px; box-sizing: border-box; flex-wrap: wrap; justify-content: center; align-content: center; gap: 15px; overflow-y: auto; }
+        
+        .group-card { 
+            width: 140px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 12px; 
+            padding: 15px 10px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s;
+        }
+        .group-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 8px; border: 2px solid #fff; background: #999; }
+        .group-card .name { color: #fff; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+        .group-card input[type=range] { width: 80%; }
 
-        /* コントロール */
         .call-controls { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
         .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
         .btn-hangup { background: #d32f2f; }
@@ -221,7 +230,7 @@
     </div>
 
     <div id="call-screen">
-        <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 20px; margin-top:50px;" id="call-status-text">呼び出し中...</div>
+        <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 20px; margin-top:30px;" id="call-status-text">呼び出し中...</div>
 
         <div id="single-call-ui">
             <div class="call-avatar-large">
@@ -231,15 +240,12 @@
             <div id="call-partner-name" style="color:#fff; font-size:1.5rem; font-weight:bold; margin-bottom:20px;">相手の名前</div>
             
             <div class="volume-control-area">
-                <label><span class="material-icons" style="font-size:16px;">volume_up</span> 音量</label>
-                <input type="range" id="single-call-volume" min="0" max="1" step="0.1" value="1">
+                <label><span class="material-icons" style="font-size:16px;">volume_up</span> 音量(最大3倍)</label>
+                <input type="range" id="single-call-volume" min="0" max="3" step="0.1" value="1">
             </div>
         </div>
 
-        <div id="group-call-ui">
-            </div>
-
-        <div id="audio-container" style="display:none;"></div>
+        <div id="group-call-ui"></div>
 
         <div class="call-controls">
             <div class="call-btn-circle btn-hangup" onclick="endCall()">
@@ -348,6 +354,7 @@
         let currentCall = null;
         let localStream = null;
         let groupCalls = []; 
+        let audioContext = null; // ★音量ブースト用★
 
         window.onload = () => {
             const savedId = localStorage.getItem("my_chat_id");
@@ -419,7 +426,6 @@
                 await updateDoc(doc(db, "users", myId), { peerId: id });
             });
             peer.on('call', async (call) => {
-                // 着信
                 document.getElementById('incoming-caller-id').innerText = "着信があります";
                 document.getElementById('incoming-caller-icon').style.display = "none";
                 document.getElementById('incoming-call-modal').style.display = 'flex';
@@ -436,30 +442,61 @@
             peer.on('disconnected', () => { peer.reconnect(); });
         }
 
+        // ★★★ 音量ブースト機能（Web Audio API） ★★★
+        function getAudioContext() {
+            if(!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if(audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            return audioContext;
+        }
+
+        function createBoostedAudio(stream, slider) {
+            const ctx = getAudioContext();
+            const source = ctx.createMediaStreamSource(stream);
+            const gainNode = ctx.createGain();
+            
+            gainNode.gain.value = 1; // 初期音量
+            source.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            // スライダー連動
+            if(slider) {
+                slider.value = 1;
+                slider.oninput = (e) => {
+                    gainNode.gain.value = parseFloat(e.target.value);
+                };
+            }
+            
+            // 保持しておく（GC対策）
+            return { source, gainNode };
+        }
+
         // --- ★1対1通話★ ---
         window.startCall = async () => {
             if(!currentChatId || currentChatType !== 'user') return;
             
             const targetUser = usersCache[currentChatId];
             if(!targetUser || !targetUser.peerId) {
-                alert("相手がアプリを開いていないため、かけられません");
-                await sendMessageData("📞 (相手がオフラインのため発信できませんでした)", null, true);
+                alert("相手がオフラインです");
+                await sendMessageData("📞 相手がオフラインのためつながりませんでした", null, true);
                 return;
             }
             const targetPeerId = targetUser.peerId;
 
             try {
+                getAudioContext(); // AudioContext準備
                 await sendMessageData("📞 電話をかけました", null, true);
                 
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
                 
-                // 画面セットアップ
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('single-call-ui').style.display = 'flex';
                 document.getElementById('group-call-ui').style.display = 'none';
                 document.getElementById('call-status-text').innerText = "呼び出し中...";
                 
-                // 相手情報表示
                 document.getElementById('call-partner-name').innerText = targetUser.displayName || currentChatId;
                 const pIcon = document.getElementById('call-partner-icon');
                 const pDef = document.getElementById('call-partner-default');
@@ -483,13 +520,13 @@
         window.answerCall = async () => {
             document.getElementById('incoming-call-modal').style.display = 'none';
             try {
+                getAudioContext(); 
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
                 
                 document.getElementById('call-screen').style.display = 'flex';
-                // 受信側もUI初期化（※簡易的に1対1想定）
                 document.getElementById('single-call-ui').style.display = 'flex';
                 document.getElementById('group-call-ui').style.display = 'none';
-                document.getElementById('call-partner-name').innerText = "通話中"; // 名前は取れないので
+                document.getElementById('call-partner-name').innerText = "通話中"; 
                 document.getElementById('call-partner-icon').style.display = 'none';
                 document.getElementById('call-partner-default').style.display = 'block';
 
@@ -514,43 +551,40 @@
             
             if(localStream) localStream.getTracks().forEach(track => track.stop());
             document.getElementById('call-screen').style.display = 'none';
-            document.getElementById('audio-container').innerHTML = "";
-            document.getElementById('group-call-ui').innerHTML = ""; // グループUIクリア
+            document.getElementById('group-call-ui').innerHTML = ""; 
+            
+            if(audioContext) audioContext.close().then(() => { audioContext = null; });
         };
         
         function handleCallStream(call) {
             call.on('stream', (remoteStream) => {
-                // 1対1は単一のaudioタグ
-                const audio = document.createElement('audio');
-                audio.srcObject = remoteStream;
-                audio.autoplay = true;
-                document.getElementById('audio-container').appendChild(audio);
-                
-                // 音量スライダーの連動
-                const slider = document.getElementById('single-call-volume');
-                slider.oninput = (e) => audio.volume = e.target.value;
-                
+                // 1対1 ブースト適用
+                createBoostedAudio(remoteStream, document.getElementById('single-call-volume'));
                 document.getElementById('call-status-text').innerText = "通話中";
             });
             call.on('close', () => endCall());
             call.on('error', () => endCall());
         }
 
-        // --- ★グループ通話★ ---
+        // --- ★グループ通話（修正版）★ ---
         window.joinGroupCall = async () => {
             if(!currentChatId || currentChatType !== 'group') return;
             try {
+                getAudioContext();
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
                 document.getElementById('btn-join-group-call').style.display = 'none';
                 document.getElementById('btn-leave-group-call').style.display = 'flex';
                 document.getElementById('group-call-indicator').style.display = 'inline';
                 
-                // 画面セットアップ（自分が参加したとき）
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('single-call-ui').style.display = 'none';
                 document.getElementById('group-call-ui').style.display = 'flex';
+                document.getElementById('group-call-ui').innerHTML = "";
                 document.getElementById('call-status-text').innerText = "グループ通話中";
                 
+                // 自分自身を追加
+                addGroupParticipantUI(myId, null, true);
+
                 await updateDoc(doc(db, "groups", currentChatId), { activeVoiceUsers: arrayUnion(myId) });
                 sendMessageData("📞 グループ通話に参加しました", null, true);
             } catch(e) { alert("マイクを許可してください"); }
@@ -558,7 +592,7 @@
 
         window.leaveGroupCall = async () => {
             if(!currentChatId || currentChatType !== 'group') return;
-            endCall(); // 通話終了処理と同じ
+            endCall(); 
             document.getElementById('btn-join-group-call').style.display = 'flex';
             document.getElementById('btn-leave-group-call').style.display = 'none';
             document.getElementById('group-call-indicator').style.display = 'none';
@@ -566,64 +600,98 @@
             sendMessageData("📞 グループ通話を退出しました", null, true);
         };
 
+        // ★バグ修正：参加者リストの完全同期★
         function handleGroupVoiceUpdate(activeUsers) {
-            // 通話ボタンが「退出」状態＝自分が参加中のときのみ処理
             if(document.getElementById('btn-leave-group-call').style.display === 'none') return;
 
+            // 1. 新しい参加者への接続と表示
             activeUsers.forEach(uid => {
+                // 自分はスキップ
                 if(uid === myId) return;
-                const targetUser = usersCache[uid];
-                if(!targetUser || !targetUser.peerId) return;
                 
-                // ID大小比較で接続方向を決める（重複防止）
-                if(myId < uid) {
-                    const call = peer.call(targetUser.peerId, localStream);
-                    if(call) handleGroupStream(call, uid);
+                // すでに表示されていればスキップ
+                if(document.getElementById('participant-' + uid)) return;
+
+                // 新規接続
+                const targetUser = usersCache[uid];
+                if(targetUser && targetUser.peerId) {
+                    // ID大小比較で片方向から発信
+                    if(myId < uid) {
+                        const call = peer.call(targetUser.peerId, localStream);
+                        if(call) handleGroupStream(call, uid);
+                    }
                 }
             });
+
+            // 2. いなくなった参加者の削除（ここが修正点！）
+            const uiContainer = document.getElementById('group-call-ui');
+            const cards = uiContainer.getElementsByClassName('group-card');
+            
+            // 後ろからループ（削除してもインデックスが狂わないように）
+            for (let i = cards.length - 1; i >= 0; i--) {
+                const card = cards[i];
+                const uid = card.id.replace('participant-', '');
+                
+                // activeUsersに含まれていない、かつ自分ではない場合、削除
+                if (!activeUsers.includes(uid) && uid !== myId) {
+                    card.remove();
+                }
+            }
         }
 
         function handleGroupStream(call, uid = null) {
             call.on('stream', (stream) => {
-                // UI作成
-                // uidが不明の場合(着信側)、PeerIDから逆引き
                 let userId = uid;
-                if(!userId) {
+                if(!userId) { 
                     const found = Object.keys(usersCache).find(key => usersCache[key].peerId === call.peer);
                     userId = found || "Unknown";
                 }
-                
-                const user = usersCache[userId] || { displayName: userId, icon: "" };
-                
-                // 音声タグ
-                const audio = document.createElement('audio');
-                audio.srcObject = stream; audio.autoplay = true;
-                document.getElementById('audio-container').appendChild(audio);
-
-                // UI要素追加
-                const uiContainer = document.getElementById('group-call-ui');
-                const div = document.createElement('div');
-                div.className = 'group-participant';
-                
-                let iconHtml = '<span class="material-icons" style="font-size:40px; color:#fff;">person</span>';
-                if(user.icon) iconHtml = `<img src="${user.icon}">`;
-                
-                div.innerHTML = `
-                    ${iconHtml}
-                    <div class="info">
-                        <div class="name">${user.displayName}</div>
-                        <input type="range" min="0" max="1" step="0.1" value="1">
-                    </div>
-                `;
-                
-                // 個別音量スライダー
-                div.querySelector('input').oninput = (e) => audio.volume = e.target.value;
-                uiContainer.appendChild(div);
+                addGroupParticipantUI(userId, stream, false);
             });
             groupCalls.push(call);
         }
 
-        // --- 以下、既存機能 ---
+        function addGroupParticipantUI(userId, stream, isSelf) {
+            const container = document.getElementById('group-call-ui');
+            if(document.getElementById('participant-' + userId)) return;
+
+            const user = usersCache[userId] || { displayName: userId, icon: "" };
+            
+            const card = document.createElement('div');
+            card.className = 'group-card';
+            card.id = 'participant-' + userId;
+
+            let iconHtml = '<span class="material-icons" style="font-size:60px; color:#fff;">person</span>';
+            if(user.icon || (isSelf && myIcon)) {
+                iconHtml = `<img src="${isSelf ? myIcon : user.icon}">`;
+            }
+
+            let controlHtml = '';
+            if(!isSelf) {
+                // スライダーID作成
+                const sliderId = 'vol-' + userId;
+                controlHtml = `<input type="range" id="${sliderId}" min="0" max="3" step="0.1" value="1">`;
+                
+                // DOM追加後にイベント設定
+                setTimeout(() => {
+                    const slider = document.getElementById(sliderId);
+                    if(slider && stream) {
+                        createBoostedAudio(stream, slider);
+                    }
+                }, 0);
+            } else {
+                controlHtml = `<span style="font-size:0.8rem; color:#aaa;">(自分)</span>`;
+            }
+
+            card.innerHTML = `
+                ${iconHtml}
+                <div class="name">${isSelf ? myDisplayName : user.displayName}</div>
+                ${controlHtml}
+            `;
+            container.appendChild(card);
+        }
+
+        // --- 既存機能 ---
         window.openSettingsModal = () => {
             document.getElementById('settings-display-name').value = myDisplayName;
             document.getElementById('settings-preview-icon').src = myIcon;
