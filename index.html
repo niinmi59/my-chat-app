@@ -13,7 +13,7 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
-        /* --- デザイン設定 --- */
+        /* --- 基本設定 --- */
         body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; height: 100vh; background: #fff; color: #333; display: flex; overflow: hidden; }
         
         .material-icons { font-size: 24px; vertical-align: middle; }
@@ -31,6 +31,7 @@
         input:focus { border-color: #000; }
         input[type=range] { padding: 0; margin: 5px 0; width: 100%; cursor: pointer; }
 
+        /* --- レイアウト --- */
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #main-screen { display: none; width: 100%; height: 100%; }
         
@@ -41,7 +42,7 @@
         #my-name-disp { font-weight: bold; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
 
         .user-icon-circle { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #ddd; border: 1px solid #eee; }
-        .user-icon-small { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 5px; vertical-align: middle; }
+        .user-icon-small { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px; flex-shrink: 0; }
 
         .icon-area { display: flex; gap: 5px; align-items: center; }
         .badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; display: none; border: 2px solid #fff; }
@@ -61,42 +62,52 @@
         .group-actions { display: none; gap: 5px; align-items: center; }
         #call-btn { display: none; } 
 
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #ffffff; padding-bottom: 40px; }
+        /* --- チャットメッセージのレイアウト修正 --- */
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #ffffff; padding-bottom: 40px; }
         
-        .msg { display: flex; flex-direction: column; max-width: 85%; position: relative; group: }
-        .msg.sent { align-self: flex-end; align-items: flex-end; }
-        .msg.received { align-self: flex-start; align-items: flex-start; }
-        .msg.system { align-self: center; align-items: center; max-width: 100%; margin: 10px 0; }
+        .msg { display: flex; max-width: 90%; align-items: flex-end; margin-bottom: 5px; }
+        .msg.sent { align-self: flex-end; flex-direction: row-reverse; }
+        .msg.received { align-self: flex-start; flex-direction: row; }
+        .msg.system { align-self: center; max-width: 100%; margin: 10px 0; justify-content: center; }
         
-        .bubble { padding: 10px 14px; line-height: 1.5; word-break: break-all; border-radius: 15px; font-size: 0.95rem; position: relative; }
-        .sent .bubble { background: #000000; color: #ffffff; } 
-        .received .bubble { background: #f2f2f2; color: #000000; }
+        /* 相手のアイコン */
+        .msg-sender-icon { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; margin-right: 8px; background: #eee; border: 1px solid #ddd; flex-shrink: 0; }
+        .msg.sent .msg-sender-icon { display: none; } /* 自分のアイコンはチャット内には出さないのが一般的 */
+
+        /* 吹き出しコンテナ（名前＋吹き出し） */
+        .msg-bubble-container { display: flex; flex-direction: column; max-width: 100%; }
+        .msg.sent .msg-bubble-container { align-items: flex-end; }
+        .msg.received .msg-bubble-container { align-items: flex-start; }
+
+        .sender-name { font-size: 0.75rem; color: #888; margin-bottom: 2px; margin-left: 2px; }
+
+        .bubble { padding: 10px 14px; line-height: 1.5; word-break: break-all; border-radius: 18px; font-size: 0.95rem; position: relative; }
+        .sent .bubble { background: #000000; color: #ffffff; border-bottom-right-radius: 4px; } 
+        .received .bubble { background: #f2f2f2; color: #000000; border-bottom-left-radius: 4px; }
         .system .bubble { background: #f0f0f0; color: #666; font-size: 0.8rem; border-radius: 20px; padding: 5px 15px; }
         .bubble img, .bubble video, .bubble iframe { max-width: 100%; border-radius: 8px; margin-top: 5px; cursor: pointer; }
 
-        .sender-name { font-size: 0.75rem; color: #888; margin-bottom: 4px; margin-left: 4px; font-weight: 500; display: flex; align-items: center; }
-        
-        .read-container { position: absolute; left: -50px; bottom: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; height: 100%; width: 45px; }
-        .read-mark { font-size: 0.65rem; color: #888; font-weight: bold; text-align: right; }
-        .msg-time { font-size: 0.65rem; color: #888; margin-top: 2px; text-align: right; }
+        /* 時間と既読の表示（横並びにする） */
+        .msg-meta-area { display: flex; flex-direction: column; justify-content: flex-end; margin: 0 6px; min-width: 35px; }
+        .sent .msg-meta-area { align-items: flex-end; text-align: right; }
+        .received .msg-meta-area { align-items: flex-start; text-align: left; }
 
-        /* --- 新機能用スタイル --- */
-        /* 削除ボタン・リアクションボタン */
-        .msg-actions { position: absolute; top: 0; display: none; gap: 5px; }
-        .msg.sent .msg-actions { left: -60px; } 
-        .msg.received .msg-actions { right: -60px; }
-        .msg:hover .msg-actions { display: flex; } /* ホバーで表示 */
-        
-        .action-icon { cursor: pointer; opacity: 0.5; transition: opacity 0.2s; font-size: 18px; padding: 2px; }
-        .action-icon:hover { opacity: 1; }
+        .read-mark { font-size: 0.65rem; color: #888; font-weight: bold; margin-bottom: 2px; }
+        .msg-time { font-size: 0.65rem; color: #888; white-space: nowrap; }
+
+        /* リアクション・操作ボタン */
+        .msg-actions { display: none; align-items: center; gap: 5px; opacity: 0.6; margin: 0 5px; }
+        .msg:hover .msg-actions { display: flex; }
+        .action-icon { cursor: pointer; font-size: 18px; padding: 4px; border-radius: 50%; }
+        .action-icon:hover { background: rgba(0,0,0,0.05); opacity: 1; }
 
         /* リアクション表示 */
-        .reactions-display { display: flex; gap: 3px; margin-top: -5px; margin-bottom: 5px; background: #fff; padding: 2px 6px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.8rem; border: 1px solid #eee; z-index: 1; }
-        .sent .reactions-display { margin-right: 10px; }
-        .received .reactions-display { margin-left: 10px; }
+        .reactions-display { display: flex; gap: 2px; background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 2px 5px; font-size: 0.8rem; margin-top: -5px; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .sent .reactions-display { margin-right: 5px; }
+        .received .reactions-display { margin-left: 5px; }
 
         /* 入力中表示 */
-        #typing-indicator { position: absolute; bottom: 70px; left: 20px; font-size: 0.75rem; color: #888; font-style: italic; display: none; background: rgba(255,255,255,0.8); padding: 5px 10px; border-radius: 10px; }
+        #typing-indicator { position: absolute; bottom: 70px; left: 20px; font-size: 0.75rem; color: #888; font-style: italic; display: none; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
         /* 画像拡大モーダル */
         #image-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 4000; display: none; justify-content: center; align-items: center; }
@@ -113,11 +124,14 @@
         .check-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
         .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
 
-        /* 通話画面 */
+        /* --- 通話画面 --- */
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        
         #single-call-ui { display: flex; flex-direction: column; align-items: center; width: 100%; }
-        .call-avatar-large { width: 120px; height: 120px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; border: 3px solid #fff; overflow: hidden; }
+        /* 通話相手のアイコン（大きく） */
+        .call-avatar-large { width: 140px; height: 140px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 4px solid #fff; overflow: hidden; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
         .call-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+        
         #group-call-ui { display: none; width: 100%; height: 70%; padding: 20px; box-sizing: border-box; flex-wrap: wrap; justify-content: center; align-content: center; gap: 15px; overflow-y: auto; }
         .group-card { width: 140px; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; position: relative; }
         .group-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 8px; border: 2px solid #fff; background: #999; }
@@ -127,11 +141,14 @@
         .status-connected { color: #4CAF50; }
         .group-card input[type=range] { width: 80%; }
         .reconnect-mini-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
+        
         .call-controls { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
-        .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
+        .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: transform 0.1s; }
+        .call-btn-circle:active { transform: scale(0.95); }
         .btn-hangup { background: #d32f2f; }
-        .volume-control-area { width: 200px; text-align: center; color: #fff; margin-top: 10px; }
-        .volume-control-area label { font-size: 0.8rem; opacity: 0.8; }
+        
+        .volume-control-area { width: 220px; text-align: center; color: #fff; margin-top: 15px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; }
+        .volume-control-area label { font-size: 0.8rem; opacity: 0.9; display: block; margin-bottom: 5px; }
 
         #incoming-call-modal { display: none; }
         #group-call-indicator { font-size: 0.8rem; color: #4CAF50; display: none; margin-right: 10px; font-weight: bold; }
@@ -141,8 +158,6 @@
             .sidebar.hidden { transform: translateX(-100%); }
             .chat-area { width: 100%; }
             .chat-header .back-btn { display: block; margin-right: 10px; cursor: pointer; }
-            .msg:hover .msg-actions { display: flex; }
-            .msg-actions { position: relative; top: auto; left: auto; right: auto; justify-content: flex-end; width: 100%; margin-top: 5px; }
         }
         .back-btn { display: none; }
     </style>
@@ -245,19 +260,23 @@
 
     <div id="call-screen">
         <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 20px; margin-top:30px;" id="call-status-text">呼び出し中...</div>
+        
         <div id="single-call-ui">
             <div class="call-avatar-large">
                 <img id="call-partner-icon" src="" onerror="this.style.display='none'">
-                <span class="material-icons" id="call-partner-default" style="font-size: 50px; color: #fff;">person</span>
+                <span class="material-icons" id="call-partner-default" style="font-size: 60px; color: #fff;">person</span>
             </div>
-            <div id="call-partner-name" style="color:#fff; font-size:1.5rem; font-weight:bold; margin-bottom:20px;">相手の名前</div>
+            <div id="call-partner-name" style="color:#fff; font-size:1.8rem; font-weight:bold; margin-bottom:20px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">相手の名前</div>
+            
             <div class="volume-control-area">
                 <label><span class="material-icons" style="font-size:16px;">volume_up</span> 音量(最大3倍)</label>
                 <input type="range" id="single-call-volume" min="0" max="3" step="0.1" value="1">
             </div>
         </div>
+
         <div id="group-call-ui"></div>
         <div id="audio-container" style="display:none;"></div>
+        
         <div class="call-controls">
             <div class="call-btn-circle btn-hangup" onclick="endCall()"><span class="material-icons" style="font-size:30px;">call_end</span></div>
         </div>
@@ -266,11 +285,11 @@
     <div id="incoming-call-modal" class="modal-overlay">
         <div class="modal-box" style="text-align:center;">
             <div class="modal-title" style="justify-content:center;">📞 着信</div>
-            <img id="incoming-caller-icon" class="user-icon-circle" style="width:60px; height:60px; margin-bottom:10px;" src="">
-            <p id="incoming-caller-id" style="font-size:1.2rem; margin-bottom:20px;"></p>
-            <div style="display:flex; gap:10px; justify-content:center;">
-                <button onclick="answerCall()" style="background:#4CAF50; border-color:#4CAF50; width:100px;">応答</button>
-                <button onclick="rejectCall()" class="danger" style="width:100px;">拒否</button>
+            <img id="incoming-caller-icon" class="user-icon-circle" style="width:80px; height:80px; margin-bottom:15px; border:2px solid #eee;" src="">
+            <p id="incoming-caller-id" style="font-size:1.3rem; margin-bottom:25px; font-weight:bold;">ユーザー</p>
+            <div style="display:flex; gap:15px; justify-content:center;">
+                <button onclick="answerCall()" style="background:#4CAF50; border-color:#4CAF50; width:100px; padding:12px;">応答</button>
+                <button onclick="rejectCall()" class="danger" style="width:100px; padding:12px;">拒否</button>
             </div>
         </div>
     </div>
@@ -289,6 +308,7 @@
             <button class="secondary close-btn" onclick="closeModal('modal-settings')">キャンセル</button>
         </div>
     </div>
+
     <div id="modal-add-friend" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">person_add</span> 友達を追加</div>
@@ -351,9 +371,6 @@
         let typingTimeout = null;
         let selectedMsgIdForReaction = null;
 
-        // 通知音（Base64）
-        const sndMsg = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"); // 簡易音源(無音回避用ダミー、実際は長いので省略。必要なら後述)
-        // 今回は「通知音」としてビープ音を生成して鳴らす関数を使います
         function playBeep(type) {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
@@ -425,8 +442,21 @@
             });
             peer.on('call', async (call) => {
                 playBeep('call');
-                document.getElementById('incoming-caller-id').innerText = "着信があります";
-                document.getElementById('incoming-caller-icon').style.display = "none";
+                
+                // 着信相手の情報を探す（簡易的にPeerIDからキャッシュを検索）
+                let callerName = "ユーザー";
+                let callerIcon = "";
+                const callerId = Object.keys(usersCache).find(key => usersCache[key].peerId === call.peer);
+                if(callerId && usersCache[callerId]) {
+                    callerName = usersCache[callerId].displayName || callerId;
+                    callerIcon = usersCache[callerId].icon || "";
+                }
+
+                document.getElementById('incoming-caller-id').innerText = callerName + " から着信";
+                const imgEl = document.getElementById('incoming-caller-icon');
+                if(callerIcon) { imgEl.src = callerIcon; imgEl.style.display = 'inline-block'; }
+                else { imgEl.style.display = 'none'; }
+
                 document.getElementById('incoming-call-modal').style.display = 'flex';
                 currentCall = call;
             });
@@ -451,24 +481,32 @@
             return { source, gainNode };
         }
 
-        // --- 通話処理 (1対1 & グループ共通) ---
+        // --- 通話処理 ---
         window.startCall = async () => {
             if(!currentChatId || currentChatType !== 'user') return;
-            const targetUser = usersCache[currentChatId];
+            // ユーザー情報をキャッシュではなく最新のDBから取得して確実にする
+            const userSnap = await getDoc(doc(db, "users", currentChatId));
+            const targetUser = userSnap.exists() ? userSnap.data() : usersCache[currentChatId];
+
             if(!targetUser || !targetUser.peerId) { alert("相手がオフラインです"); await sendMessageData("📞 相手がオフラインのためつながりませんでした", null, true); return; }
             const targetPeerId = targetUser.peerId;
             try {
                 getAudioContext(); 
                 await sendMessageData("📞 電話をかけました", null, true);
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                
+                // 画面セットアップ
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('single-call-ui').style.display = 'flex';
                 document.getElementById('group-call-ui').style.display = 'none';
                 document.getElementById('call-status-text').innerText = "呼び出し中...";
+                
+                // 相手情報更新
                 document.getElementById('call-partner-name').innerText = targetUser.displayName || currentChatId;
                 const pIcon = document.getElementById('call-partner-icon');
                 const pDef = document.getElementById('call-partner-default');
                 if(targetUser.icon) { pIcon.src = targetUser.icon; pIcon.style.display = 'block'; pDef.style.display = 'none'; } else { pIcon.style.display = 'none'; pDef.style.display = 'block'; }
+                
                 const call = peer.call(targetPeerId, localStream);
                 if(!call) return alert("接続エラー");
                 handleCallStream(call);
@@ -483,10 +521,13 @@
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('single-call-ui').style.display = 'flex';
                 document.getElementById('group-call-ui').style.display = 'none';
+                
+                // 受信時は相手の情報が完全にはわからないので仮表示（必要なら着信時にデータ渡し可能だが今回は省略）
                 document.getElementById('call-partner-name').innerText = "通話中"; 
                 document.getElementById('call-partner-icon').style.display = 'none';
                 document.getElementById('call-partner-default').style.display = 'block';
                 document.getElementById('call-status-text').innerText = "通話中";
+                
                 currentCall.answer(localStream);
                 handleCallStream(currentCall);
             } catch(e) { alert("マイク許可が必要です"); rejectCall(); }
@@ -614,20 +655,19 @@
             selectedMsgIdForReaction = msgId;
             const picker = document.getElementById('reaction-picker');
             picker.style.display = 'block';
-            picker.style.left = event.pageX + 'px';
-            picker.style.top = event.pageY + 'px';
+            picker.style.left = (event.pageX - 100) + 'px'; // 少し左にずらす
+            picker.style.top = (event.pageY + 10) + 'px';
             event.stopPropagation();
         };
         window.addReaction = async (emoji) => {
             if(!selectedMsgIdForReaction) return;
             document.getElementById('reaction-picker').style.display='none';
-            // FirestoreはMapの部分更新ができないため、読み込んでから更新
             const msgRef = doc(db, "messages", selectedMsgIdForReaction);
             const snap = await getDoc(msgRef);
             if(snap.exists()) {
                 const data = snap.data();
                 const reactions = data.reactions || {};
-                reactions[myId] = emoji; // 上書き
+                reactions[myId] = emoji; 
                 await updateDoc(msgRef, { reactions: reactions });
             }
         };
@@ -677,16 +717,15 @@
                 else { badge.classList.add('active'); snap.forEach(d => { const data = d.data(); list.innerHTML += `<div style="border-bottom:1px solid #eee; padding:15px 0;"><strong>${data.from}</strong> から申請<br><button onclick="ansReq('${d.id}', '${data.from}', true)">承認</button><button class="secondary" onclick="ansReq('${d.id}', '${data.from}', false)">拒否</button></div>`; }); }
             });
             
-            // メッセージ監視＆通知音
+            // メッセージ監視
             onSnapshot(query(collection(db, "messages"), orderBy("timestamp", "asc")), (snap) => {
                 const newMessages = [];
                 snap.docChanges().forEach(change => {
                     if (change.type === "added") {
                         const m = change.doc.data();
-                        if (m.from !== myId && Date.now() - m.timestamp < 10000) { playBeep('msg'); } // 10秒以内の新着のみ音を鳴らす
+                        if (m.from !== myId && Date.now() - m.timestamp < 10000) { playBeep('msg'); } 
                     }
                 });
-                
                 allMessages = []; snap.forEach(d => allMessages.push({ id: d.id, ...d.data() }));
                 if(currentChatId) { renderMessages(); if(currentChatType === 'user') markRead(currentChatId); }
             });
@@ -696,12 +735,10 @@
                 const indicator = document.getElementById('typing-indicator');
                 indicator.style.display = 'none';
                 if(!currentChatId) return;
-                
                 const now = new Date().getTime();
                 for(const doc of snap.docs) {
                     const data = doc.data();
                     if(data.chatId === currentChatId && data.userId !== myId) {
-                        // 5秒以内の更新なら表示
                         if(data.timestamp && (now - data.timestamp.toMillis() < 5000)) {
                             indicator.innerText = `${data.userName} が入力中...`;
                             indicator.style.display = 'block';
@@ -712,7 +749,6 @@
             });
         }
 
-        // --- 以下 UI構築など ---
         function createListItem(id, name, iconType, canDelete=false) {
             const div = document.createElement('div'); div.className = `item-row ${currentChatId === id ? 'active' : ''}`;
             let iconHtml = `<span class="material-icons" style="color:#666;">${iconType}</span>`;
@@ -741,7 +777,6 @@
             document.getElementById('group-call-indicator').style.display = 'none';
             if(window.innerWidth <= 600) document.getElementById('sidebar').classList.add('hidden');
             renderFriends(); renderMessages(); if(type === 'user') markRead(id);
-            // グループチャットなら既読リストに自分を追加
             if(type === 'group') markReadGroup(id);
         }
 
@@ -751,13 +786,11 @@
             if(updated) await batch.commit();
         }
 
-        // グループ既読処理
         async function markReadGroup(groupId) {
             const batch = writeBatch(db); let updated = false;
             allMessages.forEach(m => {
                 if(m.to === groupId && m.isGroup && (!m.readBy || !m.readBy.includes(myId))) {
-                    batch.update(doc(db, "messages", m.id), { readBy: arrayUnion(myId) });
-                    updated = true;
+                    batch.update(doc(db, "messages", m.id), { readBy: arrayUnion(myId) }); updated = true;
                 }
             });
             if(updated) await batch.commit();
@@ -786,14 +819,12 @@
                     else content += `<div>${m.text}</div>`;
                 }
                 
-                // リアクション表示
                 let reactionsHtml = "";
                 if(m.reactions) {
                     let rList = Object.values(m.reactions).join(' ');
                     if(rList) reactionsHtml = `<div class="reactions-display">${rList}</div>`;
                 }
 
-                // 削除・リアクションボタン
                 let actionsHtml = `
                     <div class="msg-actions">
                         <span class="material-icons action-icon" onclick="openReactionPicker('${m.id}', event)">add_reaction</span>
@@ -801,32 +832,42 @@
                     </div>
                 `;
 
-                let info = "";
-                if(!isMe && currentChatType === 'group') {
+                // ★アイコン表示（receivedのみ）
+                let iconEl = "";
+                if (!isMe) {
                     let uIcon = "";
-                    if(usersCache[m.from] && usersCache[m.from].icon) uIcon = `<img src="${usersCache[m.from].icon}" style="width:16px; height:16px; border-radius:50%; margin-right:4px;">`;
-                    info = `<div class="sender-name">${uIcon} ${m.senderName || m.from}</div>`;
+                    if(usersCache[m.from] && usersCache[m.from].icon) uIcon = usersCache[m.from].icon;
+                    if(uIcon) {
+                        iconEl = `<img src="${uIcon}" class="msg-sender-icon">`;
+                    } else {
+                        // アイコンがない場合のダミー
+                        iconEl = `<div class="msg-sender-icon" style="display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:20px;color:#aaa">person</span></div>`;
+                    }
+                }
+
+                let nameEl = "";
+                if(!isMe && currentChatType === 'group') {
+                    nameEl = `<div class="sender-name">${m.senderName || m.from}</div>`;
                 }
                 
-                // 既読表示 (1:1とグループで分岐)
                 let meta = "";
                 const time = new Date(m.timestamp).getHours() + ":" + String(new Date(m.timestamp).getMinutes()).padStart(2,'0');
                 
                 if(isMe) {
                     let readStatus = "";
-                    if(currentChatType === 'user') {
-                        if(m.isRead) readStatus = "既読";
-                    } else {
-                        // グループ既読数 (自分を除く)
-                        const count = m.readBy ? m.readBy.length - 1 : 0;
-                        if(count > 0) readStatus = "既読 " + count;
-                    }
-                    meta = `<div class="read-container"><div class="read-mark visible">${readStatus}</div><div class="msg-time">${time}</div></div>`;
+                    if(currentChatType === 'user') { if(m.isRead) readStatus = "既読"; }
+                    else { const count = m.readBy ? m.readBy.length - 1 : 0; if(count > 0) readStatus = "既読 " + count; }
+                    meta = `<div class="msg-meta-area"><div class="read-mark">${readStatus}</div><div class="msg-time">${time}</div></div>`;
                 } else {
-                    meta = `<div class="read-container"><div class="msg-time">${time}</div></div>`;
+                    meta = `<div class="msg-meta-area"><div class="msg-time">${time}</div></div>`;
                 }
 
-                div.innerHTML = info + `<div class="bubble">${content}</div>${reactionsHtml}${meta}${actionsHtml}`;
+                // 構造: [アイコン] + [ [名前] + [吹き出し+リアクション] ] + [時間/既読] + [アクション]
+                if(isMe) {
+                    div.innerHTML = `${actionsHtml}${meta}<div class="msg-bubble-container"><div class="bubble">${content}</div>${reactionsHtml}</div>`;
+                } else {
+                    div.innerHTML = `${iconEl}<div class="msg-bubble-container">${nameEl}<div class="bubble">${content}</div>${reactionsHtml}</div>${meta}${actionsHtml}`;
+                }
                 container.appendChild(div);
             });
             container.scrollTop = container.scrollHeight;
