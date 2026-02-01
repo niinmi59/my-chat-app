@@ -91,6 +91,7 @@
         .group-actions { display: none; gap: 5px; align-items: center; }
         #call-btn { display: none; } 
 
+        /* --- チャットメッセージ --- */
         .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: var(--bg-color); padding-bottom: 40px; }
         
         .msg { display: flex; max-width: 90%; align-items: flex-end; margin-bottom: 5px; }
@@ -152,18 +153,28 @@
         .check-list { max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 20px; border-radius: 4px; }
         .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid var(--border-color); }
 
-        /* --- 通話画面 --- */
+        /* --- 通話画面 (アイコン修正) --- */
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
         
         #single-call-ui { display: flex; flex-direction: column; align-items: center; width: 100%; }
-        .call-avatar-large { width: 140px; height: 140px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 4px solid #fff; overflow: hidden; box-shadow: 0 0 20px rgba(255,255,255,0.2); position: relative; }
-        .call-avatar-large img, .call-avatar-large video { width: 100%; height: 100%; object-fit: cover; }
         
+        /* デフォルトは丸型 */
+        .call-avatar-container { width: 140px; height: 140px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 4px solid #fff; overflow: hidden; box-shadow: 0 0 20px rgba(255,255,255,0.2); position: relative; transition: all 0.3s; }
+        .call-avatar-container img { width: 100%; height: 100%; object-fit: cover; }
+        /* 画面共有時は四角く大きく */
+        .call-avatar-container.sharing { width: 90%; max-width: 500px; height: auto; aspect-ratio: 16/9; border-radius: 10px; }
+        .call-avatar-container video { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .call-avatar-container.sharing video { display: block; }
+        .call-avatar-container.sharing img { display: none; } /* 共有中はアイコン消す */
+
         #group-call-ui { display: none; width: 100%; height: 70%; padding: 20px; box-sizing: border-box; flex-wrap: wrap; justify-content: center; align-content: center; gap: 15px; overflow-y: auto; }
         .group-card { width: 140px; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; position: relative; }
-        .group-card .media-box { width: 100%; height: 100px; border-radius: 8px; background: #000; margin-bottom: 5px; overflow: hidden; position: relative; }
+        .group-card .media-box { width: 80px; height: 80px; border-radius: 50%; background: #000; margin-bottom: 8px; overflow: hidden; position: relative; border: 2px solid #fff; }
         .group-card .media-box video { width: 100%; height: 100%; object-fit: cover; }
-        .group-card .media-box img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .group-card .media-box img { width: 100%; height: 100%; object-fit: cover; }
+        /* グループ画面共有時 */
+        .group-card.sharing { width: 240px; }
+        .group-card.sharing .media-box { width: 100%; height: 135px; border-radius: 8px; }
         
         .group-card .name { color: #fff; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
         .group-card .status { font-size: 0.7rem; margin-bottom: 5px; }
@@ -177,7 +188,7 @@
         .call-btn-circle:active { transform: scale(0.95); }
         .btn-hangup { background: #d32f2f; }
         .btn-active { background: #fff; color: #000; }
-        .btn-mute.muted { background: #fff; color: #000; } /* ミュート時の色 */
+        .btn-mute.muted { background: #fff; color: #000; }
         
         .volume-control-area { width: 220px; text-align: center; color: #fff; margin-top: 15px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; }
         .volume-control-area label { font-size: 0.8rem; opacity: 0.9; display: block; margin-bottom: 5px; }
@@ -302,7 +313,7 @@
         <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 10px; margin-top:30px;" id="call-status-text">呼び出し中...</div>
         
         <div id="single-call-ui">
-            <div class="call-avatar-large">
+            <div class="call-avatar-container" id="single-call-container">
                 <video id="remote-video" autoplay playsinline></video>
                 <img id="call-partner-icon" src="" onerror="this.style.display='none'">
                 <span class="material-icons" id="call-partner-default" style="font-size: 60px; color: #fff;">person</span>
@@ -392,7 +403,7 @@
     </div>
     <div id="modal-invite-group" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title"><span class="material-icons">person_add_alt</span> グループへ招待</div>
+            <div class="modal-title"><span class="material-icons">person_add</span> グループへ招待</div>
             <div class="check-list" id="invite-member-list"></div>
             <button onclick="executeInvite()" style="width:100%;">招待する</button>
             <button class="secondary close-btn" onclick="closeModal('modal-invite-group')">キャンセル</button>
@@ -427,7 +438,7 @@
         let typingTimeout = null;
         let selectedMsgIdForReaction = null;
         let incomingCallInfo = null; 
-        let replyTarget = null; // リプライ対象
+        let replyTarget = null; 
 
         // 通知設定
         window.requestNotif = async () => {
@@ -441,7 +452,6 @@
             document.body.classList.toggle('dark-mode');
             localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
         };
-        // 初期ロード時にテーマ適用
         if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
 
         function playBeep(type) {
@@ -467,6 +477,10 @@
         window.onload = () => {
             const savedId = localStorage.getItem("my_chat_id");
             if(savedId) authSuccess(savedId);
+            // フォーカス戻った時にID更新（電話つながりやすくするため）
+            window.addEventListener('focus', () => {
+                if(peer && myId && !peer.disconnected) updateDoc(doc(db, "users", myId), { peerId: peer.id });
+            });
         };
 
         window.authLogin = async () => {
@@ -515,12 +529,10 @@
             });
             peer.on('call', async (call) => {
                 playBeep('call');
-                
-                // Web通知
                 if(document.hidden && Notification.permission === 'granted') {
                     new Notification("📞 着信", { body: "アプリを開いて応答してください" });
                 }
-
+                
                 let callerName = "ユーザー"; let callerIcon = "";
                 if(call.metadata && call.metadata.name) {
                     callerName = call.metadata.name; callerIcon = call.metadata.icon;
@@ -537,11 +549,16 @@
                 document.getElementById('incoming-call-modal').style.display = 'flex';
                 currentCall = call;
             });
-            peer.on('error', (err) => { if(err.type === 'peer-unavailable') { alert("相手がオフラインです"); sendSystemMessage("📞 相手がオフラインのためつながりませんでした"); endCall(); }});
+            peer.on('error', (err) => { 
+                console.error(err);
+                if(err.type === 'peer-unavailable') { 
+                    alert("相手がオフラインです"); sendSystemMessage("📞 相手がオフラインのためつながりませんでした"); endCall(); 
+                }
+            });
             peer.on('disconnected', () => { peer.reconnect(); });
         }
 
-        // --- Audio Context ---
+        // --- Audio Context & Mute ---
         function getAudioContext() {
             if(!audioContext) { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
             if(audioContext.state === 'suspended') { audioContext.resume(); }
@@ -577,15 +594,24 @@
                 const videoTrack = screenStream.getVideoTracks()[0];
                 if(currentCall && currentCall.peerConnection) {
                     const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
-                    if(sender) sender.replaceTrack(videoTrack);
+                    if(sender) {
+                        sender.replaceTrack(videoTrack);
+                        document.getElementById('single-call-container').classList.add('sharing');
+                    }
                 }
-                // ローカル表示
-                const localVid = document.getElementById('local-video');
-                // 画面共有時は自分の映像を共有画面に
-                // ※この簡易実装ではプレビューは更新しないか、localVidに出す
                 
+                // グループ通話の場合、各ピアに対して映像トラックを差し替え
+                groupCalls.forEach(call => {
+                    if(call.peerConnection) {
+                        const sender = call.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                        if(sender) sender.replaceTrack(videoTrack);
+                    }
+                });
+
                 videoTrack.onended = () => {
-                    // 戻す処理（省略、再度カメラにするならリロード推奨）
+                    // 画面共有終了 -> 音声のみに戻す（カメラがないため）
+                    document.getElementById('single-call-container').classList.remove('sharing');
+                    // 再接続が必要になる場合があるが、簡易的に映像トラックを無効化する処理など
                 };
             } catch(e) { console.error(e); }
         };
@@ -600,7 +626,7 @@
             try {
                 getAudioContext(); 
                 await sendMessageData("📞 電話をかけました", null, true);
-                // カメラなし、マイクのみ
+                // マイクのみ
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
                 
                 document.getElementById('call-screen').style.display = 'flex';
@@ -612,6 +638,7 @@
                 const pIcon = document.getElementById('call-partner-icon');
                 const pDef = document.getElementById('call-partner-default');
                 if(targetUser.icon) { pIcon.src = targetUser.icon; pIcon.style.display = 'block'; pDef.style.display = 'none'; } else { pIcon.style.display = 'none'; pDef.style.display = 'block'; }
+                document.getElementById('single-call-container').classList.remove('sharing');
                 
                 const btn = document.getElementById('mute-btn'); btn.classList.remove('muted'); btn.querySelector('.material-icons').innerText = 'mic';
 
@@ -641,6 +668,7 @@
                 } else { document.getElementById('call-partner-name').innerText = "通話中"; }
                 
                 document.getElementById('call-status-text').innerText = "通話中";
+                document.getElementById('single-call-container').classList.remove('sharing');
                 const btn = document.getElementById('mute-btn'); btn.classList.remove('muted'); btn.querySelector('.material-icons').innerText = 'mic';
 
                 currentCall.answer(localStream);
@@ -662,12 +690,21 @@
             call.on('stream', (remoteStream) => {
                 createBoostedAudio(remoteStream, document.getElementById('single-call-volume'));
                 
-                // 映像がある場合（画面共有など）
+                // 映像がある場合
                 const remoteVid = document.getElementById('remote-video');
                 remoteVid.srcObject = remoteStream;
-                // 映像がない場合はアイコン表示のままにするため、videoタグの前面配置などのCSS調整が必要
-                // 今回はビデオタグが前面にあるので、ストリームに映像トラックがあれば映る
-                
+                // 映像トラックがあるか確認して表示切り替え
+                if(remoteStream.getVideoTracks().length > 0) {
+                    document.getElementById('single-call-container').classList.add('sharing');
+                }
+
+                // 隠しAudioタグで再生保証
+                const hiddenAudio = document.createElement('audio');
+                hiddenAudio.srcObject = remoteStream;
+                hiddenAudio.autoplay = true;
+                hiddenAudio.style.display = 'none';
+                document.body.appendChild(hiddenAudio);
+
                 document.getElementById('call-status-text').innerText = "通話中";
             });
             call.on('close', () => endCall()); call.on('error', () => endCall());
@@ -755,16 +792,23 @@
             card.className = 'group-card';
             card.id = 'participant-' + userId;
             
-            // ビデオ要素
             let mediaHtml = '';
             if(isSelf) {
-                // 自分の映像（画面共有時用）
-                mediaHtml = `<video autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;" id="group-self-video"></video>`;
-                setTimeout(() => { if(localStream) document.getElementById('group-self-video').srcObject = localStream; }, 100);
+                mediaHtml = `<img src="${user.icon || ''}" onerror="this.style.display='none'">`;
             } else {
                 const vidId = 'v-' + userId;
-                mediaHtml = `<video autoplay playsinline style="width:100%;height:100%;object-fit:cover;" id="${vidId}"></video>`;
-                setTimeout(() => { if(stream) document.getElementById(vidId).srcObject = stream; }, 100);
+                mediaHtml = `<video autoplay playsinline style="width:100%;height:100%;object-fit:cover;" id="${vidId}"></video><img src="${user.icon || ''}" style="position:absolute;top:0;left:0;">`;
+                setTimeout(() => { 
+                    if(stream) {
+                        const vid = document.getElementById(vidId);
+                        vid.srcObject = stream;
+                        // 映像があれば画像隠す
+                        if(stream.getVideoTracks().length > 0) {
+                            card.classList.add('sharing');
+                            card.querySelector('img').style.display='none';
+                        }
+                    }
+                }, 100);
             }
 
             let controlHtml = ''; let statusHtml = '';
@@ -776,19 +820,17 @@
                     const slider = document.getElementById(sliderId);
                     if(slider && stream) {
                         createBoostedAudio(stream, slider);
-                        
                         const hiddenAudio = document.createElement('audio');
                         hiddenAudio.srcObject = stream;
                         hiddenAudio.autoplay = true;
                         hiddenAudio.style.display = 'none';
                         document.body.appendChild(hiddenAudio);
-
                         const statusEl = card.querySelector('.status');
                         if(statusEl) { statusEl.className = 'status status-connected'; statusEl.innerText = '● 接続完了'; }
                     }
                 }, 0);
             } else { statusHtml = '<div class="status">自分</div>'; }
-            card.innerHTML = `<div class="media-box">${mediaHtml}<img src="${user.icon || ''}" onerror="this.style.display='none'"></div><div class="name">${isSelf ? myDisplayName : user.displayName}</div>${statusHtml}${controlHtml}`;
+            card.innerHTML = `<div class="media-box">${mediaHtml}</div><div class="name">${isSelf ? myDisplayName : user.displayName}</div>${statusHtml}${controlHtml}`;
             container.appendChild(card);
         }
 
