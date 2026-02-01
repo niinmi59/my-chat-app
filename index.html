@@ -13,30 +13,63 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
-        /* --- デザイン設定 --- */
-        body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; height: 100vh; background: #fff; color: #333; display: flex; overflow: hidden; }
+        /* --- カラー変数 (ライト/ダーク切り替え用) --- */
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --sidebar-bg: #fafafa;
+            --border-color: #eeeeee;
+            --input-bg: #f9f9f9;
+            --msg-sent-bg: #000000;
+            --msg-sent-text: #ffffff;
+            --msg-recv-bg: #f2f2f2;
+            --msg-recv-text: #000000;
+            --hover-bg: #f0f0f0;
+            --card-bg: rgba(0,0,0,0.05);
+        }
+
+        body.dark-mode {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --sidebar-bg: #1e1e1e;
+            --border-color: #333333;
+            --input-bg: #2c2c2c;
+            --msg-sent-bg: #4a90e2; 
+            --msg-sent-text: #ffffff;
+            --msg-recv-bg: #333333;
+            --msg-recv-text: #e0e0e0;
+            --hover-bg: #333333;
+            --card-bg: rgba(255,255,255,0.1);
+        }
+
+        /* --- 基本設定 --- */
+        body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; height: 100vh; background: var(--bg-color); color: var(--text-color); display: flex; overflow: hidden; transition: background 0.3s, color 0.3s; }
         
         .material-icons { font-size: 24px; vertical-align: middle; }
-        .icon-btn { cursor: pointer; color: #333; transition: color 0.2s; position: relative; padding: 8px; display: flex; align-items: center; justify-content: center; }
-        .icon-btn:hover { background: rgba(0,0,0,0.05); border-radius: 50%; }
+        .icon-btn { cursor: pointer; color: var(--text-color); transition: opacity 0.2s; position: relative; padding: 8px; display: flex; align-items: center; justify-content: center; }
+        .icon-btn:hover { background: var(--hover-bg); border-radius: 50%; }
 
         button { background: #000; color: #fff; border: 1px solid #000; padding: 10px 16px; cursor: pointer; font-weight: bold; font-size: 0.9rem; border-radius: 8px; transition: opacity 0.2s; }
+        body.dark-mode button { background: #4a90e2; border-color: #4a90e2; }
         button:hover { opacity: 0.8; }
-        button.secondary { background: #fff; color: #000; border: 1px solid #ddd; }
+        button.secondary { background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); }
         button.danger { background: #d32f2f; border-color: #d32f2f; color: #fff; }
+        
+        /* 通話ボタン類 */
         button.call-join { background: #4CAF50; border-color: #4CAF50; color: #fff; display: flex; align-items: center; gap: 5px; }
         button.call-leave { background: #d32f2f; border-color: #d32f2f; color: #fff; display: flex; align-items: center; gap: 5px; }
         
-        input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; font-size: 1rem; }
+        input { padding: 12px; border: 1px solid var(--border-color); outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; font-size: 1rem; background: var(--input-bg); color: var(--text-color); }
         input:focus { border-color: #000; }
+        body.dark-mode input:focus { border-color: #4a90e2; }
         input[type=range] { padding: 0; margin: 5px 0; width: 100%; cursor: pointer; }
 
         /* --- レイアウト --- */
-        #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #login-screen { position: fixed; inset: 0; background: var(--bg-color); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #main-screen { display: none; width: 100%; height: 100%; }
         
-        .sidebar { width: 320px; border-right: 1px solid #eee; display: flex; flex-direction: column; background: #fafafa; }
-        .sidebar-header { padding: 0 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; height: 60px; }
+        .sidebar { width: 320px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--sidebar-bg); }
+        .sidebar-header { padding: 0 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-color); height: 60px; }
         
         .my-profile-area { display: flex; align-items: center; gap: 5px; overflow: hidden; }
         #my-name-disp { font-weight: bold; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
@@ -45,24 +78,26 @@
         .user-icon-small { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px; flex-shrink: 0; }
 
         .icon-area { display: flex; gap: 5px; align-items: center; }
-        .badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; display: none; border: 2px solid #fff; }
+        .badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; display: none; border: 2px solid var(--bg-color); }
         .badge.active { display: block; }
 
         .list-section { padding: 12px 20px; font-weight: bold; font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; }
         .scroll-list { overflow-y: auto; flex: 1; }
         
-        .item-row { padding: 12px 20px; border-bottom: 1px solid #f5f5f5; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #fff; transition: background 0.1s; }
-        .item-row:hover { background: #f0f0f0; }
-        .item-row.active { background: #eee; border-right: 4px solid #000; }
+        .item-row { padding: 12px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--bg-color); transition: background 0.1s; }
+        .item-row:hover { background: var(--hover-bg); }
+        .item-row.active { background: var(--hover-bg); border-right: 4px solid #000; }
+        body.dark-mode .item-row.active { border-right: 4px solid #4a90e2; }
         .item-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 
-        .chat-area { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; }
-        .chat-header { padding: 0 20px; border-bottom: 1px solid #eee; height: 60px; display: flex; align-items: center; font-weight: bold; justify-content: space-between; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-color); position: relative; }
+        .chat-header { padding: 0 20px; border-bottom: 1px solid var(--border-color); height: 60px; display: flex; align-items: center; font-weight: bold; justify-content: space-between; color: var(--text-color); }
         
         .group-actions { display: none; gap: 5px; align-items: center; }
         #call-btn { display: none; } 
 
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #ffffff; padding-bottom: 40px; }
+        /* --- チャットメッセージ --- */
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: var(--bg-color); padding-bottom: 40px; }
         
         .msg { display: flex; max-width: 90%; align-items: flex-end; margin-bottom: 5px; }
         .msg.sent { align-self: flex-end; flex-direction: row-reverse; }
@@ -79,11 +114,14 @@
         .sender-name { font-size: 0.75rem; color: #888; margin-bottom: 2px; margin-left: 2px; }
 
         .bubble { padding: 10px 14px; line-height: 1.5; word-break: break-all; border-radius: 18px; font-size: 0.95rem; position: relative; }
-        .sent .bubble { background: #000000; color: #ffffff; border-bottom-right-radius: 4px; } 
-        .received .bubble { background: #f2f2f2; color: #000000; border-bottom-left-radius: 4px; }
-        .system .bubble { background: #f0f0f0; color: #666; font-size: 0.8rem; border-radius: 20px; padding: 5px 15px; }
+        .sent .bubble { background: var(--msg-sent-bg); color: var(--msg-sent-text); border-bottom-right-radius: 4px; } 
+        .received .bubble { background: var(--msg-recv-bg); color: var(--msg-recv-text); border-bottom-left-radius: 4px; }
+        .system .bubble { background: var(--hover-bg); color: #888; font-size: 0.8rem; border-radius: 20px; padding: 5px 15px; }
         .bubble img, .bubble video, .bubble iframe { max-width: 100%; border-radius: 8px; margin-top: 5px; cursor: pointer; }
 
+        /* リプライ引用表示 */
+        .reply-quote { font-size: 0.75rem; border-left: 3px solid #ccc; padding-left: 5px; margin-bottom: 5px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; display: block; background: rgba(0,0,0,0.05); border-radius: 4px; padding: 4px; }
+        
         .msg-meta-area { display: flex; flex-direction: column; justify-content: flex-end; margin: 0 6px; min-width: 35px; }
         .sent .msg-meta-area { align-items: flex-end; text-align: right; }
         .received .msg-meta-area { align-items: flex-start; text-align: left; }
@@ -93,51 +131,59 @@
 
         .msg-actions { display: none; align-items: center; gap: 5px; opacity: 0.6; margin: 0 5px; }
         .msg:hover .msg-actions { display: flex; }
-        .action-icon { cursor: pointer; font-size: 18px; padding: 4px; border-radius: 50%; }
-        .action-icon:hover { background: rgba(0,0,0,0.05); opacity: 1; }
+        .action-icon { cursor: pointer; font-size: 18px; padding: 4px; border-radius: 50%; color: var(--text-color); }
+        .action-icon:hover { background: var(--hover-bg); opacity: 1; }
 
-        .reactions-display { display: flex; gap: 2px; background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 2px 5px; font-size: 0.8rem; margin-top: -5px; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .reactions-display { display: flex; gap: 2px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 2px 5px; font-size: 0.8rem; margin-top: -5px; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .sent .reactions-display { margin-right: 5px; }
         .received .reactions-display { margin-left: 5px; }
 
-        #typing-indicator { position: absolute; bottom: 70px; left: 20px; font-size: 0.75rem; color: #888; font-style: italic; display: none; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #typing-indicator { position: absolute; bottom: 80px; left: 20px; font-size: 0.75rem; color: #888; font-style: italic; display: none; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        body.dark-mode #typing-indicator { background: rgba(50,50,50,0.9); }
+
+        /* リプライプレビューバー */
+        #reply-preview-bar { display: none; background: var(--hover-bg); padding: 8px 15px; border-top: 1px solid var(--border-color); font-size: 0.85rem; justify-content: space-between; align-items: center; }
+        #reply-preview-content { border-left: 3px solid #4CAF50; padding-left: 8px; color: var(--text-color); font-weight: bold; }
 
         #image-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 4000; display: none; justify-content: center; align-items: center; }
         #image-modal img { max-width: 95%; max-height: 95%; object-fit: contain; }
         #image-modal .close-img { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 30px; cursor: pointer; }
 
-        .input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; visibility: hidden; align-items: center; background: #fff; }
-        .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; }
+        .input-area { padding: 15px; border-top: 1px solid var(--border-color); display: flex; gap: 10px; visibility: hidden; align-items: center; background: var(--bg-color); flex-direction: column; }
+        .input-row { display: flex; width: 100%; gap: 10px; align-items: center; }
+        .input-area input[type=text] { flex: 1; background: var(--input-bg); border: none; padding: 15px; border-radius: 24px; }
         
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
-        .modal-box { background: #fff; padding: 30px; width: 90%; max-width: 380px; max-height: 80vh; overflow-y: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-box { background: var(--bg-color); padding: 30px; width: 90%; max-width: 380px; max-height: 80vh; overflow-y: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); color: var(--text-color); }
         .modal-title { font-weight: bold; font-size: 1.2rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
         .close-btn { margin-top: 20px; width: 100%; }
-        .check-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
-        .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
+        .check-list { max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; margin-bottom: 20px; border-radius: 4px; }
+        .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid var(--border-color); }
 
         /* --- 通話画面 --- */
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
         
         #single-call-ui { display: flex; flex-direction: column; align-items: center; width: 100%; }
-        .call-avatar-large { width: 140px; height: 140px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 4px solid #fff; overflow: hidden; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
-        .call-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+        /* ビデオ対応のためサイズ調整 */
+        .call-avatar-large { width: 100%; max-width: 400px; height: 300px; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; border: 2px solid #fff; overflow: hidden; border-radius: 10px; position: relative; }
+        .call-avatar-large video { width: 100%; height: 100%; object-fit: cover; }
+        .call-avatar-large img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; position: absolute; z-index: 1; }
         
         #group-call-ui { display: none; width: 100%; height: 70%; padding: 20px; box-sizing: border-box; flex-wrap: wrap; justify-content: center; align-content: center; gap: 15px; overflow-y: auto; }
         .group-card { width: 140px; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; text-align: center; border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; position: relative; }
-        .group-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 8px; border: 2px solid #fff; background: #999; }
-        .group-card .name { color: #fff; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
-        .group-card .status { font-size: 0.7rem; margin-bottom: 5px; }
-        .status-connecting { color: #ffeb3b; }
-        .status-connected { color: #4CAF50; }
-        .group-card input[type=range] { width: 80%; }
-        .reconnect-mini-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
+        .group-card .media-box { width: 100%; height: 100px; border-radius: 8px; background: #000; margin-bottom: 5px; overflow: hidden; position: relative; }
+        .group-card .media-box video { width: 100%; height: 100%; object-fit: cover; }
+        .group-card .media-box img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
         
-        .call-controls { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 25px; z-index: 3020; }
-        .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: transform 0.1s; background: rgba(255,255,255,0.2); }
+        .group-card .name { color: #fff; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+        .group-card input[type=range] { width: 80%; }
+        .reconnect-mini-btn { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; z-index: 10; }
+        
+        .call-controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
+        .call-btn-circle { width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: transform 0.1s; background: rgba(255,255,255,0.2); }
         .call-btn-circle:active { transform: scale(0.95); }
         .btn-hangup { background: #d32f2f; }
-        .btn-mute.muted { background: #fff; color: #000; }
+        .btn-active { background: #fff; color: #000; }
         
         .volume-control-area { width: 220px; text-align: center; color: #fff; margin-top: 15px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; }
         .volume-control-area label { font-size: 0.8rem; opacity: 0.9; display: block; margin-bottom: 5px; }
@@ -150,6 +196,8 @@
             .sidebar.hidden { transform: translateX(-100%); }
             .chat-area { width: 100%; }
             .chat-header .back-btn { display: block; margin-right: 10px; cursor: pointer; }
+            .msg:hover .msg-actions { display: flex; }
+            .msg-actions { position: relative; width: 100%; justify-content: flex-end; margin-top: 5px; }
         }
         .back-btn { display: none; }
     </style>
@@ -177,7 +225,7 @@
                     <img id="my-icon-disp" class="user-icon-circle" src="">
                     <span id="my-name-disp">ID</span>
                     <div class="icon-btn" onclick="openSettingsModal()" title="設定" style="padding: 4px;">
-                        <span class="material-icons" style="font-size: 20px; color: #666;">settings</span>
+                        <span class="material-icons" style="font-size: 20px; color: var(--text-color);">settings</span>
                     </div>
                 </div>
                 <div class="icon-area">
@@ -208,11 +256,11 @@
             <div class="chat-header">
                 <div style="display:flex; align-items:center;">
                     <span class="material-icons back-btn" onclick="showSidebar()">arrow_back</span>
-                    <span id="chat-title" style="color:#888;">チャットを選択</span>
+                    <span id="chat-title" style="color:var(--text-color);">チャットを選択</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <div class="icon-btn" id="call-btn" onclick="startCall()" title="電話をかける">
-                        <span class="material-icons" style="color:#000;">call</span>
+                        <span class="material-icons" style="color:var(--text-color);">call</span>
                     </div>
                     <div class="group-actions" id="group-actions">
                         <span id="group-call-indicator">● 通話中</span>
@@ -231,19 +279,25 @@
             <div id="typing-indicator"></div>
             
             <div class="input-area" id="input-area">
-                <label class="icon-btn" title="画像を送信">
-                    <span class="material-icons">photo_camera</span>
-                    <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="sendImage(this)">
-                </label>
-                <input type="text" id="msg-input" placeholder="メッセージ...">
-                <button onclick="sendMessage()" style="border-radius:24px; padding:10px 20px;">
-                    <span class="material-icons" style="font-size:18px;">send</span>
-                </button>
+                <div id="reply-preview-bar">
+                    <span id="reply-preview-content"></span>
+                    <span class="material-icons" style="cursor:pointer;" onclick="cancelReply()">close</span>
+                </div>
+                <div class="input-row">
+                    <label class="icon-btn" title="画像を送信">
+                        <span class="material-icons">photo_camera</span>
+                        <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="sendImage(this)">
+                    </label>
+                    <input type="text" id="msg-input" placeholder="メッセージ...">
+                    <button onclick="sendMessage()" style="border-radius:24px; padding:10px 20px;">
+                        <span class="material-icons" style="font-size:18px;">send</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="reaction-picker" style="display:none; position:fixed; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,0.2); padding:5px; border-radius:20px; z-index:100;">
+    <div id="reaction-picker" style="display:none; position:fixed; background:var(--bg-color); box-shadow:0 2px 10px rgba(0,0,0,0.2); padding:5px; border-radius:20px; z-index:100; border:1px solid var(--border-color);">
         <span class="action-icon" onclick="addReaction('👍')">👍</span>
         <span class="action-icon" onclick="addReaction('❤️')">❤️</span>
         <span class="action-icon" onclick="addReaction('😂')">😂</span>
@@ -251,12 +305,14 @@
     </div>
 
     <div id="call-screen">
-        <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 20px; margin-top:30px;" id="call-status-text">呼び出し中...</div>
+        <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 10px; margin-top:30px;" id="call-status-text">呼び出し中...</div>
         
         <div id="single-call-ui">
             <div class="call-avatar-large">
+                <video id="remote-video" autoplay playsinline></video>
                 <img id="call-partner-icon" src="" onerror="this.style.display='none'">
                 <span class="material-icons" id="call-partner-default" style="font-size: 60px; color: #fff;">person</span>
+                <video id="local-video" autoplay playsinline muted style="position:absolute; bottom:10px; right:10px; width:80px; height:60px; border:1px solid #fff; object-fit:cover; z-index:2; display:none;"></video>
             </div>
             <div id="call-partner-name" style="color:#fff; font-size:1.8rem; font-weight:bold; margin-bottom:20px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">相手の名前</div>
             
@@ -270,9 +326,9 @@
         <div id="audio-container" style="display:none;"></div>
         
         <div class="call-controls">
-            <div class="call-btn-circle btn-mute" id="mute-btn" onclick="toggleMute()">
-                <span class="material-icons" style="font-size:28px;">mic</span>
-            </div>
+            <div class="call-btn-circle btn-mute" id="mute-btn" onclick="toggleMute()"><span class="material-icons" style="font-size:24px;">mic</span></div>
+            <div class="call-btn-circle" id="camera-btn" onclick="toggleVideo()"><span class="material-icons" style="font-size:24px;">videocam_off</span></div>
+            <div class="call-btn-circle" id="screen-btn" onclick="shareScreen()"><span class="material-icons" style="font-size:24px;">screen_share</span></div>
             <div class="call-btn-circle btn-hangup" onclick="endCall()"><span class="material-icons" style="font-size:30px;">call_end</span></div>
         </div>
     </div>
@@ -292,10 +348,23 @@
     <div id="modal-settings" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">settings</span> 設定</div>
+            <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>ダークモード</span>
+                    <button class="secondary" onclick="toggleDarkMode()" style="padding:5px 10px;"><span class="material-icons">dark_mode</span></button>
+                </div>
+            </div>
+            <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>通知をオンにする</span>
+                    <button class="secondary" onclick="requestNotif()" style="padding:5px 10px;">許可</button>
+                </div>
+            </div>
+            
             <p style="font-weight:bold; margin-bottom:5px;">アイコン画像</p>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
                 <img id="settings-preview-icon" class="user-icon-circle" style="width:50px; height:50px;">
-                <label class="icon-btn" style="border:1px solid #ddd; border-radius:4px;">画像を選択<input type="file" id="settings-icon-input" accept="image/*" style="display:none;" onchange="previewIcon(this)"></label>
+                <label class="icon-btn" style="border:1px solid var(--border-color); border-radius:4px;">画像を選択<input type="file" id="settings-icon-input" accept="image/*" style="display:none;" onchange="previewIcon(this)"></label>
             </div>
             <p style="font-weight:bold; margin-bottom:5px;">表示名の変更</p>
             <input type="text" id="settings-display-name" placeholder="新しい名前を入力" style="width:100%; margin-bottom:15px;">
@@ -331,7 +400,7 @@
     </div>
     <div id="modal-invite-group" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title"><span class="material-icons">person_add</span> グループへ招待</div>
+            <div class="modal-title"><span class="material-icons">person_add_alt</span> グループへ招待</div>
             <div class="check-list" id="invite-member-list"></div>
             <button onclick="executeInvite()" style="width:100%;">招待する</button>
             <button class="secondary close-btn" onclick="closeModal('modal-invite-group')">キャンセル</button>
@@ -363,9 +432,24 @@
         let currentChatId = "", currentChatType = ""; 
         let myFriends = [], allMessages = [], usersCache = {}; 
         let peer = null, currentCall = null, localStream = null, groupCalls = [], audioContext = null;
-        let typingTimeout = null;
         let selectedMsgIdForReaction = null;
         let incomingCallInfo = null; 
+        let replyTarget = null; // リプライ対象 {id, text, name}
+
+        // 通知設定
+        window.requestNotif = async () => {
+            const permission = await Notification.requestPermission();
+            if(permission === 'granted') alert("通知がオンになりました");
+            else alert("通知がブロックされています");
+        };
+
+        // ダークモード
+        window.toggleDarkMode = () => {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        };
+        // 初期ロード時にテーマ適用
+        if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
 
         function playBeep(type) {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -439,27 +523,24 @@
             peer.on('call', async (call) => {
                 playBeep('call');
                 
-                let callerName = "ユーザー";
-                let callerIcon = "";
-                
+                // Web通知
+                if(document.hidden && Notification.permission === 'granted') {
+                    new Notification("📞 着信", { body: "アプリを開いて応答してください" });
+                }
+
+                let callerName = "ユーザー"; let callerIcon = "";
                 if(call.metadata && call.metadata.name) {
-                    callerName = call.metadata.name;
-                    callerIcon = call.metadata.icon;
+                    callerName = call.metadata.name; callerIcon = call.metadata.icon;
                 } else {
                     const callerId = Object.keys(usersCache).find(key => usersCache[key].peerId === call.peer);
                     if(callerId && usersCache[callerId]) {
-                        callerName = usersCache[callerId].displayName || callerId;
-                        callerIcon = usersCache[callerId].icon || "";
+                        callerName = usersCache[callerId].displayName || callerId; callerIcon = usersCache[callerId].icon || "";
                     }
                 }
-                
                 incomingCallInfo = { name: callerName, icon: callerIcon };
-
                 document.getElementById('incoming-caller-id').innerText = callerName + " から着信";
                 const imgEl = document.getElementById('incoming-caller-icon');
-                if(callerIcon) { imgEl.src = callerIcon; imgEl.style.display = 'inline-block'; }
-                else { imgEl.style.display = 'none'; }
-
+                if(callerIcon) { imgEl.src = callerIcon; imgEl.style.display = 'inline-block'; } else { imgEl.style.display = 'none'; }
                 document.getElementById('incoming-call-modal').style.display = 'flex';
                 currentCall = call;
             });
@@ -467,7 +548,7 @@
             peer.on('disconnected', () => { peer.reconnect(); });
         }
 
-        // --- Audio Context & Mute ---
+        // --- Audio Context & Mute/Video ---
         function getAudioContext() {
             if(!audioContext) { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
             if(audioContext.state === 'suspended') { audioContext.resume(); }
@@ -491,15 +572,51 @@
                     audioTrack.enabled = !audioTrack.enabled;
                     const btn = document.getElementById('mute-btn');
                     const icon = btn.querySelector('.material-icons');
-                    if(audioTrack.enabled) {
-                        btn.classList.remove('muted');
-                        icon.innerText = 'mic';
-                    } else {
-                        btn.classList.add('muted');
-                        icon.innerText = 'mic_off';
-                    }
+                    if(audioTrack.enabled) { btn.classList.remove('btn-active'); icon.innerText = 'mic'; } 
+                    else { btn.classList.add('btn-active'); icon.innerText = 'mic_off'; }
                 }
             }
+        };
+
+        window.toggleVideo = () => {
+            if(localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if(videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    const btn = document.getElementById('camera-btn');
+                    const icon = btn.querySelector('.material-icons');
+                    const localVideo = document.getElementById('local-video');
+                    if(videoTrack.enabled) {
+                        btn.classList.add('btn-active'); icon.innerText = 'videocam';
+                        localVideo.style.display = 'block';
+                    } else {
+                        btn.classList.remove('btn-active'); icon.innerText = 'videocam_off';
+                        localVideo.style.display = 'none';
+                    }
+                } else {
+                    // 音声のみで開始した場合、ビデオトラックがないため再取得が必要（簡易実装ではアラート）
+                    alert("カメラをオンにするには、一度切ってから再度かけ直してください(カメラ権限が必要です)");
+                }
+            }
+        };
+
+        window.shareScreen = async () => {
+            try {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                const videoTrack = screenStream.getVideoTracks()[0];
+                if(currentCall && currentCall.peerConnection) {
+                    const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    if(sender) sender.replaceTrack(videoTrack);
+                }
+                // 画面共有終了時の処理
+                videoTrack.onended = () => {
+                    const originalVideoTrack = localStream.getVideoTracks()[0];
+                    if(currentCall && currentCall.peerConnection && originalVideoTrack) {
+                        const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                        if(sender) sender.replaceTrack(originalVideoTrack);
+                    }
+                };
+            } catch(e) { console.error(e); }
         };
 
         // --- 通話処理 ---
@@ -507,72 +624,70 @@
             if(!currentChatId || currentChatType !== 'user') return;
             const userSnap = await getDoc(doc(db, "users", currentChatId));
             const targetUser = userSnap.exists() ? userSnap.data() : usersCache[currentChatId];
-
             if(!targetUser || !targetUser.peerId) { alert("相手がオフラインです"); await sendMessageData("📞 相手がオフラインのためつながりませんでした", null, true); return; }
             const targetPeerId = targetUser.peerId;
             try {
                 getAudioContext(); 
                 await sendMessageData("📞 電話をかけました", null, true);
-                localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                // ビデオも取得
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // 初期状態はカメラオフにする場合もあるが、今回はオン
                 
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('single-call-ui').style.display = 'flex';
                 document.getElementById('group-call-ui').style.display = 'none';
                 document.getElementById('call-status-text').innerText = "呼び出し中...";
                 
+                // 自分のビデオ表示
+                const localVid = document.getElementById('local-video');
+                localVid.srcObject = localStream;
+                localVid.style.display = 'block';
+                document.getElementById('camera-btn').classList.add('btn-active'); // カメラON状態
+
                 document.getElementById('call-partner-name').innerText = targetUser.displayName || currentChatId;
                 const pIcon = document.getElementById('call-partner-icon');
                 const pDef = document.getElementById('call-partner-default');
                 if(targetUser.icon) { pIcon.src = targetUser.icon; pIcon.style.display = 'block'; pDef.style.display = 'none'; } else { pIcon.style.display = 'none'; pDef.style.display = 'block'; }
                 
-                resetMuteButton();
+                const btn = document.getElementById('mute-btn'); btn.classList.remove('btn-active'); btn.querySelector('.material-icons').innerText = 'mic';
 
-                const call = peer.call(targetPeerId, localStream, {
-                    metadata: { name: myDisplayName, icon: myIcon, id: myId }
-                });
-                
+                const call = peer.call(targetPeerId, localStream, { metadata: { name: myDisplayName, icon: myIcon, id: myId } });
                 if(!call) return alert("接続エラー");
                 handleCallStream(call);
                 currentCall = call;
-            } catch(e) { alert("マイクの使用を許可してください"); }
+            } catch(e) { alert("カメラ・マイクの使用を許可してください"); }
         };
 
         window.answerCall = async () => {
             document.getElementById('incoming-call-modal').style.display = 'none';
             try {
-                getAudioContext(); localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                getAudioContext(); 
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('single-call-ui').style.display = 'flex';
                 document.getElementById('group-call-ui').style.display = 'none';
                 
+                const localVid = document.getElementById('local-video');
+                localVid.srcObject = localStream;
+                localVid.style.display = 'block';
+                document.getElementById('camera-btn').classList.add('btn-active');
+
                 if(incomingCallInfo) {
                     document.getElementById('call-partner-name').innerText = incomingCallInfo.name;
                     const pIcon = document.getElementById('call-partner-icon');
                     const pDef = document.getElementById('call-partner-default');
-                    if(incomingCallInfo.icon) {
-                        pIcon.src = incomingCallInfo.icon; pIcon.style.display = 'block'; pDef.style.display = 'none';
-                    } else {
-                        pIcon.style.display = 'none'; pDef.style.display = 'block';
-                    }
-                } else {
-                    document.getElementById('call-partner-name').innerText = "通話中"; 
-                }
+                    if(incomingCallInfo.icon) { pIcon.src = incomingCallInfo.icon; pIcon.style.display = 'block'; pDef.style.display = 'none'; } 
+                    else { pIcon.style.display = 'none'; pDef.style.display = 'block'; }
+                } else { document.getElementById('call-partner-name').innerText = "通話中"; }
                 
                 document.getElementById('call-status-text').innerText = "通話中";
-                resetMuteButton();
+                const btn = document.getElementById('mute-btn'); btn.classList.remove('btn-active'); btn.querySelector('.material-icons').innerText = 'mic';
 
                 currentCall.answer(localStream);
                 handleCallStream(currentCall);
-            } catch(e) { alert("マイク許可が必要です"); rejectCall(); }
+            } catch(e) { alert("許可が必要です"); rejectCall(); }
         };
-
-        function resetMuteButton() {
-            const btn = document.getElementById('mute-btn');
-            const icon = btn.querySelector('.material-icons');
-            btn.classList.remove('muted');
-            icon.innerText = 'mic';
-        }
 
         window.rejectCall = () => { if(currentCall) currentCall.close(); document.getElementById('incoming-call-modal').style.display = 'none'; };
         window.endCall = () => {
@@ -587,13 +702,10 @@
         function handleCallStream(call) {
             call.on('stream', (remoteStream) => {
                 createBoostedAudio(remoteStream, document.getElementById('single-call-volume'));
+                // 映像表示
+                const remoteVid = document.getElementById('remote-video');
+                remoteVid.srcObject = remoteStream;
                 
-                const hiddenAudio = document.createElement('audio');
-                hiddenAudio.srcObject = remoteStream;
-                hiddenAudio.autoplay = true;
-                hiddenAudio.style.display = 'none';
-                document.body.appendChild(hiddenAudio);
-
                 document.getElementById('call-status-text').innerText = "通話中";
             });
             call.on('close', () => endCall()); call.on('error', () => endCall());
@@ -602,7 +714,7 @@
         window.joinGroupCall = async () => {
             if(!currentChatId || currentChatType !== 'group') return;
             try {
-                getAudioContext(); localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                getAudioContext(); localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('btn-join-group-call').style.display = 'none';
                 document.getElementById('btn-leave-group-call').style.display = 'flex';
                 document.getElementById('group-call-indicator').style.display = 'inline';
@@ -612,12 +724,11 @@
                 document.getElementById('group-call-ui').innerHTML = "";
                 document.getElementById('call-status-text').innerText = "グループ通話中";
                 
-                resetMuteButton();
+                const btn = document.getElementById('mute-btn'); btn.classList.remove('btn-active'); btn.querySelector('.material-icons').innerText = 'mic';
                 addGroupParticipantUI(myId, null, true);
-                
                 await updateDoc(doc(db, "groups", currentChatId), { activeVoiceUsers: arrayUnion(myId) });
                 sendMessageData("📞 グループ通話に参加しました", null, true);
-            } catch(e) { alert("マイクを許可してください"); }
+            } catch(e) { alert("許可してください"); }
         };
 
         window.leaveGroupCall = async () => {
@@ -681,8 +792,19 @@
             const card = document.createElement('div');
             card.className = 'group-card';
             card.id = 'participant-' + userId;
-            let iconHtml = '<span class="material-icons" style="font-size:60px; color:#fff;">person</span>';
-            if(user.icon || (isSelf && myIcon)) iconHtml = `<img src="${isSelf ? myIcon : user.icon}">`;
+            
+            // ビデオ要素
+            let mediaHtml = '';
+            if(isSelf) {
+                // 自分の映像
+                mediaHtml = `<video autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;" id="group-self-video"></video>`;
+                setTimeout(() => { if(localStream) document.getElementById('group-self-video').srcObject = localStream; }, 100);
+            } else {
+                const vidId = 'v-' + userId;
+                mediaHtml = `<video autoplay playsinline style="width:100%;height:100%;object-fit:cover;" id="${vidId}"></video>`;
+                setTimeout(() => { if(stream) document.getElementById(vidId).srcObject = stream; }, 100);
+            }
+
             let controlHtml = ''; let statusHtml = '';
             if(!isSelf) {
                 statusHtml = stream ? '<div class="status status-connected">● 接続完了</div>' : '<div class="status status-connecting">● 接続試行中...</div>';
@@ -692,23 +814,27 @@
                     const slider = document.getElementById(sliderId);
                     if(slider && stream) {
                         createBoostedAudio(stream, slider);
-                        
-                        const hiddenAudio = document.createElement('audio');
-                        hiddenAudio.srcObject = stream;
-                        hiddenAudio.autoplay = true;
-                        hiddenAudio.style.display = 'none';
-                        document.body.appendChild(hiddenAudio);
-
                         const statusEl = card.querySelector('.status');
                         if(statusEl) { statusEl.className = 'status status-connected'; statusEl.innerText = '● 接続完了'; }
                     }
                 }, 0);
             } else { statusHtml = '<div class="status">自分</div>'; }
-            card.innerHTML = `${iconHtml}<div class="name">${isSelf ? myDisplayName : user.displayName}</div>${statusHtml}${controlHtml}`;
+            card.innerHTML = `<div class="media-box">${mediaHtml}<img src="${user.icon || ''}" onerror="this.style.display='none'"></div><div class="name">${isSelf ? myDisplayName : user.displayName}</div>${statusHtml}${controlHtml}`;
             container.appendChild(card);
         }
 
-        // --- 以下 UI構築など ---
+        // --- リプライ機能 ---
+        window.startReply = (id, text, name) => {
+            replyTarget = { id, text, name };
+            document.getElementById('reply-preview-bar').style.display = 'flex';
+            document.getElementById('reply-preview-content').innerText = `返信: ${name}「${text}」`;
+            document.getElementById('msg-input').focus();
+        };
+        window.cancelReply = () => {
+            replyTarget = null;
+            document.getElementById('reply-preview-bar').style.display = 'none';
+        };
+
         window.openReactionPicker = (msgId, event) => {
             selectedMsgIdForReaction = msgId;
             const picker = document.getElementById('reaction-picker');
@@ -772,11 +898,16 @@
                 else { badge.classList.add('active'); snap.forEach(d => { const data = d.data(); list.innerHTML += `<div style="border-bottom:1px solid #eee; padding:15px 0;"><strong>${data.from}</strong> から申請<br><button onclick="ansReq('${d.id}', '${data.from}', true)">承認</button><button class="secondary" onclick="ansReq('${d.id}', '${data.from}', false)">拒否</button></div>`; }); }
             });
             onSnapshot(query(collection(db, "messages"), orderBy("timestamp", "asc")), (snap) => {
-                const newMessages = [];
                 snap.docChanges().forEach(change => {
                     if (change.type === "added") {
                         const m = change.doc.data();
-                        if (m.from !== myId && Date.now() - m.timestamp < 10000) { playBeep('msg'); } 
+                        if (m.from !== myId && Date.now() - m.timestamp < 10000) { 
+                            playBeep('msg'); 
+                            // Web通知
+                            if(document.hidden && Notification.permission === 'granted') {
+                                new Notification("新着メッセージ", { body: `${m.senderName}: ${m.text || '画像'}` });
+                            }
+                        } 
                     }
                 });
                 allMessages = []; snap.forEach(d => allMessages.push({ id: d.id, ...d.data() }));
@@ -819,13 +950,14 @@
 
         function selectChat(id, type, name) {
             currentChatId = id; currentChatType = type;
-            document.getElementById('chat-title').innerHTML = `<span class="material-icons" style="font-size:20px; color:#000; margin-right:5px;">${type==='group'?'groups':'person'}</span> ${name}`;
+            document.getElementById('chat-title').innerHTML = `<span class="material-icons" style="font-size:20px; color:var(--text-color); margin-right:5px;">${type==='group'?'groups':'person'}</span> ${name}`;
             document.getElementById('input-area').style.visibility = 'visible';
             document.getElementById('group-actions').style.display = type === 'group' ? 'flex' : 'none';
             document.getElementById('call-btn').style.display = type === 'user' ? 'flex' : 'none';
             document.getElementById('btn-join-group-call').style.display = 'flex';
             document.getElementById('btn-leave-group-call').style.display = 'none';
             document.getElementById('group-call-indicator').style.display = 'none';
+            cancelReply(); // チャット切り替えでリプライ解除
             if(window.innerWidth <= 600) document.getElementById('sidebar').classList.add('hidden');
             renderFriends(); renderMessages(); if(type === 'user') markRead(id);
             if(type === 'group') markReadGroup(id);
@@ -861,6 +993,12 @@
                 }
                 const div = document.createElement('div'); div.className = `msg ${isMe ? 'sent' : 'received'}`;
                 let content = "";
+                
+                // リプライ表示
+                if(m.replyTo) {
+                    content += `<div class="reply-quote"><b>${m.replyTo.name}</b>: ${m.replyTo.text}</div>`;
+                }
+
                 if(m.image) content += `<img src="${m.image}" onclick="openImageModal(this.src)">`;
                 if(m.text) {
                     if (m.text.includes('youtube.com') || m.text.includes('youtu.be')) {
@@ -878,21 +1016,18 @@
 
                 let actionsHtml = `
                     <div class="msg-actions">
+                        <span class="material-icons action-icon" onclick="startReply('${m.id}', '${m.text || '画像'}', '${m.senderName}')" title="返信">reply</span>
                         <span class="material-icons action-icon" onclick="openReactionPicker('${m.id}', event)">add_reaction</span>
                         ${isMe ? `<span class="material-icons action-icon" onclick="deleteMessage('${m.id}')">delete</span>` : ''}
                     </div>
                 `;
 
-                // ★アイコン表示
                 let iconEl = "";
                 if (!isMe) {
                     let uIcon = "";
                     if(usersCache[m.from] && usersCache[m.from].icon) uIcon = usersCache[m.from].icon;
-                    if(uIcon) {
-                        iconEl = `<img src="${uIcon}" class="msg-sender-icon">`;
-                    } else {
-                        iconEl = `<div class="msg-sender-icon" style="display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:20px;color:#aaa">person</span></div>`;
-                    }
+                    if(uIcon) { iconEl = `<img src="${uIcon}" class="msg-sender-icon">`; } 
+                    else { iconEl = `<div class="msg-sender-icon" style="display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:20px;color:#aaa">person</span></div>`; }
                 }
 
                 let nameEl = "";
@@ -932,13 +1067,15 @@
         function resetChatView() { currentChatId = ""; document.getElementById('input-area').style.visibility = 'hidden'; document.getElementById('group-actions').style.display = 'none'; document.getElementById('call-btn').style.display = 'none'; document.getElementById('messages-container').innerHTML = ""; document.getElementById('chat-title').innerText = "チャットを選択"; if(window.innerWidth <= 600) showSidebar(); }
         window.showSidebar = () => document.getElementById('sidebar').classList.remove('hidden');
         window.sendImage = (input) => { const file = input.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = async (e) => { await sendMessageData("", e.target.result); }; reader.readAsDataURL(file); input.value = ""; };
-        window.sendMessage = async () => { const input = document.getElementById('msg-input'); const text = input.value.trim(); if(!text) return; await sendMessageData(text, null); input.value = ""; };
+        window.sendMessage = async () => { const input = document.getElementById('msg-input'); const text = input.value.trim(); if(!text) return; await sendMessageData(text, null); input.value = ""; cancelReply(); };
+        
         async function sendMessageData(text, imageBase64, isSystem=false) { 
             if(!currentChatId) return; 
             await addDoc(collection(db, "messages"), { 
                 from: myId, senderName: myDisplayName, to: currentChatId, text: text, image: imageBase64, 
                 isGroup: currentChatType === 'group', timestamp: new Date().getTime(), isRead: false, isSystem: isSystem, 
-                readBy: [myId] 
+                readBy: [myId],
+                replyTo: replyTarget // リプライ情報
             }); 
         }
         window.openGroupModal = () => { const list = document.getElementById('group-member-list'); list.innerHTML = ""; myFriends.forEach(fid => list.innerHTML += `<label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`); document.getElementById('modal-create-group').style.display='flex'; };
