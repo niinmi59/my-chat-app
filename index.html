@@ -29,6 +29,8 @@
         
         input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; font-size: 1rem; }
         input:focus { border-color: #000; }
+        /* 音量スライダー */
+        input[type=range] { padding: 0; margin: 10px 0; width: 100%; cursor: pointer; }
 
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #main-screen { display: none; width: 100%; height: 100%; }
@@ -90,21 +92,32 @@
         .check-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
         .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
 
-        /* 通話画面 */
+        /* --- 通話画面 --- */
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .call-avatar-large { width: 120px; height: 120px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 3px solid #fff; overflow: hidden; }
+        
+        /* 1対1通話用UI */
+        #single-call-ui { display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .call-avatar-large { width: 120px; height: 120px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; border: 3px solid #fff; overflow: hidden; }
         .call-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* グループ通話用UI（参加者リスト） */
+        #group-call-ui { display: none; width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+        .group-participant { display: flex; align-items: center; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; gap: 10px; }
+        .group-participant img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .group-participant .info { flex: 1; color: #fff; }
+        .group-participant .info .name { font-weight: bold; font-size: 0.9rem; }
+        .group-participant input[type=range] { width: 80px; margin: 0; }
+
+        /* コントロール */
         .call-controls { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 3020; }
         .call-btn-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
         .btn-hangup { background: #d32f2f; }
         
+        .volume-control-area { width: 200px; text-align: center; color: #fff; margin-top: 10px; }
+        .volume-control-area label { font-size: 0.8rem; opacity: 0.8; }
+
         #incoming-call-modal { display: none; }
         #group-call-indicator { font-size: 0.8rem; color: #4CAF50; display: none; margin-right: 10px; font-weight: bold; }
-        
-        #status-bar { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #ddd; z-index: 1000; }
-        #status-bar.connected { background: #4CAF50; }
-        #status-bar.error { background: #d32f2f; }
-        .phone-status-text { font-size: 0.7rem; color: #888; margin-left: 5px; }
 
         @media (max-width: 600px) {
             .sidebar { display: flex; width: 100%; position: absolute; z-index: 100; height: 100%; transform: translateX(0); transition: transform 0.3s; }
@@ -116,8 +129,6 @@
     </style>
 </head>
 <body>
-
-    <div id="status-bar"></div>
 
     <div id="login-screen">
         <h2 style="letter-spacing: 2px; margin-bottom: 30px;">CHAT APP</h2>
@@ -133,10 +144,7 @@
             <div class="sidebar-header">
                 <div class="my-profile-area">
                     <img id="my-icon-disp" class="user-icon-circle" src="">
-                    <div>
-                        <div id="my-name-disp">ID</div>
-                        <div id="phone-status-display" class="phone-status-text">接続中...</div>
-                    </div>
+                    <span id="my-name-disp">ID</span>
                     <div class="icon-btn" onclick="openSettingsModal()" title="設定" style="padding: 4px;">
                         <span class="material-icons" style="font-size: 20px; color: #666;">settings</span>
                     </div>
@@ -213,12 +221,26 @@
     </div>
 
     <div id="call-screen">
-        <div id="audio-container"></div>
-        <div class="call-avatar-large">
-            <img id="call-partner-icon" src="" onerror="this.style.display='none'">
-            <span class="material-icons" id="call-partner-default" style="font-size: 50px; color: #fff;">person</span>
+        <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 20px; margin-top:50px;" id="call-status-text">呼び出し中...</div>
+
+        <div id="single-call-ui">
+            <div class="call-avatar-large">
+                <img id="call-partner-icon" src="" onerror="this.style.display='none'">
+                <span class="material-icons" id="call-partner-default" style="font-size: 50px; color: #fff;">person</span>
+            </div>
+            <div id="call-partner-name" style="color:#fff; font-size:1.5rem; font-weight:bold; margin-bottom:20px;">相手の名前</div>
+            
+            <div class="volume-control-area">
+                <label><span class="material-icons" style="font-size:16px;">volume_up</span> 音量</label>
+                <input type="range" id="single-call-volume" min="0" max="1" step="0.1" value="1">
+            </div>
         </div>
-        <div style="color:#fff; font-size:1.2rem; text-shadow:0 1px 3px #000; margin-bottom: 10px;" id="call-status-text">呼び出し中...</div>
+
+        <div id="group-call-ui">
+            </div>
+
+        <div id="audio-container" style="display:none;"></div>
+
         <div class="call-controls">
             <div class="call-btn-circle btn-hangup" onclick="endCall()">
                 <span class="material-icons" style="font-size:30px;">call_end</span>
@@ -390,93 +412,71 @@
             }
         };
 
-        // --- ★PeerJS 初期化（自動ID生成＆DB登録）★ ---
         function initPeer() {
-            // IDを指定せずに生成（ランダムな英数字になる）
             peer = new Peer(); 
-
             peer.on('open', async (id) => { 
                 console.log('My Peer ID:', id);
-                document.getElementById('status-bar').classList.add('connected');
-                document.getElementById('phone-status-display').innerText = "📞 電話OK";
-                document.getElementById('phone-status-display').style.color = "#4CAF50";
-                
-                // ★自分のPeerIDをDBに保存！★
                 await updateDoc(doc(db, "users", myId), { peerId: id });
             });
-            
             peer.on('call', async (call) => {
+                // 着信
                 document.getElementById('incoming-caller-id').innerText = "着信があります";
                 document.getElementById('incoming-caller-icon').style.display = "none";
                 document.getElementById('incoming-call-modal').style.display = 'flex';
                 currentCall = call;
             });
-
             peer.on('error', (err) => {
                 console.error(err);
-                document.getElementById('status-bar').classList.remove('connected');
-                document.getElementById('status-bar').classList.add('error');
-                document.getElementById('phone-status-display').innerText = "通信エラー";
-                document.getElementById('phone-status-display').style.color = "#d32f2f";
                 if(err.type === 'peer-unavailable') { 
-                    alert("相手がオフラインのようです（IDが見つかりません）"); 
+                    alert("相手がオフラインです");
+                    sendSystemMessage("📞 相手がオフラインのためつながりませんでした");
                     endCall();
                 }
             });
-            
-            peer.on('disconnected', () => {
-                document.getElementById('phone-status-display').innerText = "切断中...";
-                peer.reconnect();
-            });
+            peer.on('disconnected', () => { peer.reconnect(); });
         }
 
-        // --- ★通話開始（DBからIDを取得してかける）★ ---
+        // --- ★1対1通話★ ---
         window.startCall = async () => {
             if(!currentChatId || currentChatType !== 'user') return;
             
-            // 相手のPeerIDをキャッシュから取得
             const targetUser = usersCache[currentChatId];
             if(!targetUser || !targetUser.peerId) {
-                alert("相手がオフラインか、電話の準備ができていません");
-                await sendMessageData("📞 (電話をかけましたが、相手がつながりませんでした)", null, true);
+                alert("相手がアプリを開いていないため、かけられません");
+                await sendMessageData("📞 (相手がオフラインのため発信できませんでした)", null, true);
                 return;
             }
-
             const targetPeerId = targetUser.peerId;
 
             try {
-                // まずチャットで通知
                 await sendMessageData("📞 電話をかけました", null, true);
                 
-                // マイク取得
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
                 
+                // 画面セットアップ
                 document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('single-call-ui').style.display = 'flex';
+                document.getElementById('group-call-ui').style.display = 'none';
                 document.getElementById('call-status-text').innerText = "呼び出し中...";
                 
-                // アイコン表示
+                // 相手情報表示
+                document.getElementById('call-partner-name').innerText = targetUser.displayName || currentChatId;
                 const pIcon = document.getElementById('call-partner-icon');
                 const pDef = document.getElementById('call-partner-default');
                 if(targetUser.icon) {
-                    pIcon.src = targetUser.icon;
-                    pIcon.style.display = 'block'; pDef.style.display = 'none';
+                    pIcon.src = targetUser.icon; pIcon.style.display = 'block'; pDef.style.display = 'none';
                 } else {
                     pIcon.style.display = 'none'; pDef.style.display = 'block';
                 }
 
-                // ★DBにあったIDにかける★
                 const call = peer.call(targetPeerId, localStream);
+                if(!call) return alert("接続エラー");
                 
-                if(!call) {
-                    alert("接続できませんでした");
-                    return;
-                }
                 handleCallStream(call);
                 currentCall = call;
 
             } catch(e) {
                 alert("マイクの使用を許可してください");
-                console.error(e);
             }
         };
 
@@ -484,22 +484,24 @@
             document.getElementById('incoming-call-modal').style.display = 'none';
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                
                 document.getElementById('call-screen').style.display = 'flex';
+                // 受信側もUI初期化（※簡易的に1対1想定）
+                document.getElementById('single-call-ui').style.display = 'flex';
+                document.getElementById('group-call-ui').style.display = 'none';
+                document.getElementById('call-partner-name').innerText = "通話中"; // 名前は取れないので
+                document.getElementById('call-partner-icon').style.display = 'none';
+                document.getElementById('call-partner-default').style.display = 'block';
+
                 document.getElementById('call-status-text').innerText = "通話中";
                 currentCall.answer(localStream);
                 handleCallStream(currentCall);
             } catch(e) {
-                alert("マイク許可が必要です");
-                rejectCall();
+                alert("マイク許可が必要です"); rejectCall();
             }
         };
 
-        window.rejectCall = () => { 
-            if(currentCall) {
-                currentCall.close();
-            }
-            document.getElementById('incoming-call-modal').style.display = 'none'; 
-        };
+        window.rejectCall = () => { if(currentCall) currentCall.close(); document.getElementById('incoming-call-modal').style.display = 'none'; };
         
         window.endCall = () => {
             if(currentCall) {
@@ -508,28 +510,33 @@
                 }
                 currentCall.close();
             }
-            groupCalls.forEach(c => c.close());
-            groupCalls = [];
+            groupCalls.forEach(c => c.close()); groupCalls = [];
             
             if(localStream) localStream.getTracks().forEach(track => track.stop());
             document.getElementById('call-screen').style.display = 'none';
             document.getElementById('audio-container').innerHTML = "";
+            document.getElementById('group-call-ui').innerHTML = ""; // グループUIクリア
         };
         
         function handleCallStream(call) {
             call.on('stream', (remoteStream) => {
+                // 1対1は単一のaudioタグ
                 const audio = document.createElement('audio');
                 audio.srcObject = remoteStream;
                 audio.autoplay = true;
-                audio.playsInline = true;
                 document.getElementById('audio-container').appendChild(audio);
+                
+                // 音量スライダーの連動
+                const slider = document.getElementById('single-call-volume');
+                slider.oninput = (e) => audio.volume = e.target.value;
+                
                 document.getElementById('call-status-text').innerText = "通話中";
             });
-            call.on('close', () => { endCall(); });
-            call.on('error', () => { endCall(); });
+            call.on('close', () => endCall());
+            call.on('error', () => endCall());
         }
 
-        // --- グループ通話（DBのIDを使用）---
+        // --- ★グループ通話★ ---
         window.joinGroupCall = async () => {
             if(!currentChatId || currentChatType !== 'group') return;
             try {
@@ -537,6 +544,13 @@
                 document.getElementById('btn-join-group-call').style.display = 'none';
                 document.getElementById('btn-leave-group-call').style.display = 'flex';
                 document.getElementById('group-call-indicator').style.display = 'inline';
+                
+                // 画面セットアップ（自分が参加したとき）
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('single-call-ui').style.display = 'none';
+                document.getElementById('group-call-ui').style.display = 'flex';
+                document.getElementById('call-status-text').innerText = "グループ通話中";
+                
                 await updateDoc(doc(db, "groups", currentChatId), { activeVoiceUsers: arrayUnion(myId) });
                 sendMessageData("📞 グループ通話に参加しました", null, true);
             } catch(e) { alert("マイクを許可してください"); }
@@ -544,44 +558,72 @@
 
         window.leaveGroupCall = async () => {
             if(!currentChatId || currentChatType !== 'group') return;
-            if(localStream) localStream.getTracks().forEach(t => t.stop());
-            groupCalls.forEach(c => c.close()); groupCalls = [];
+            endCall(); // 通話終了処理と同じ
             document.getElementById('btn-join-group-call').style.display = 'flex';
             document.getElementById('btn-leave-group-call').style.display = 'none';
             document.getElementById('group-call-indicator').style.display = 'none';
-            document.getElementById('audio-container').innerHTML = "";
             await updateDoc(doc(db, "groups", currentChatId), { activeVoiceUsers: arrayRemove(myId) });
             sendMessageData("📞 グループ通話を退出しました", null, true);
         };
 
         function handleGroupVoiceUpdate(activeUsers) {
+            // 通話ボタンが「退出」状態＝自分が参加中のときのみ処理
             if(document.getElementById('btn-leave-group-call').style.display === 'none') return;
+
             activeUsers.forEach(uid => {
                 if(uid === myId) return;
-                
-                // キャッシュから相手のPeerIDを取得
                 const targetUser = usersCache[uid];
-                if(!targetUser || !targetUser.peerId) return; // IDがない場合はスキップ
-
-                const targetPeerId = targetUser.peerId;
+                if(!targetUser || !targetUser.peerId) return;
                 
-                // 重複接続防止（IDの大小比較）
+                // ID大小比較で接続方向を決める（重複防止）
                 if(myId < uid) {
-                    const call = peer.call(targetPeerId, localStream);
-                    if(call) handleGroupStream(call);
+                    const call = peer.call(targetUser.peerId, localStream);
+                    if(call) handleGroupStream(call, uid);
                 }
             });
         }
 
-        function handleGroupStream(call) {
+        function handleGroupStream(call, uid = null) {
             call.on('stream', (stream) => {
+                // UI作成
+                // uidが不明の場合(着信側)、PeerIDから逆引き
+                let userId = uid;
+                if(!userId) {
+                    const found = Object.keys(usersCache).find(key => usersCache[key].peerId === call.peer);
+                    userId = found || "Unknown";
+                }
+                
+                const user = usersCache[userId] || { displayName: userId, icon: "" };
+                
+                // 音声タグ
                 const audio = document.createElement('audio');
                 audio.srcObject = stream; audio.autoplay = true;
                 document.getElementById('audio-container').appendChild(audio);
+
+                // UI要素追加
+                const uiContainer = document.getElementById('group-call-ui');
+                const div = document.createElement('div');
+                div.className = 'group-participant';
+                
+                let iconHtml = '<span class="material-icons" style="font-size:40px; color:#fff;">person</span>';
+                if(user.icon) iconHtml = `<img src="${user.icon}">`;
+                
+                div.innerHTML = `
+                    ${iconHtml}
+                    <div class="info">
+                        <div class="name">${user.displayName}</div>
+                        <input type="range" min="0" max="1" step="0.1" value="1">
+                    </div>
+                `;
+                
+                // 個別音量スライダー
+                div.querySelector('input').oninput = (e) => audio.volume = e.target.value;
+                uiContainer.appendChild(div);
             });
             groupCalls.push(call);
         }
 
+        // --- 以下、既存機能 ---
         window.openSettingsModal = () => {
             document.getElementById('settings-display-name').value = myDisplayName;
             document.getElementById('settings-preview-icon').src = myIcon;
