@@ -26,7 +26,7 @@
         button.secondary { background: #fff; color: #000; border: 1px solid #ddd; }
         button.danger { background: #fff; color: #d32f2f; border: 1px solid #d32f2f; }
         
-        input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; }
+        input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; font-size: 1rem; }
         input:focus { border-color: #000; }
 
         /* 画面レイアウト */
@@ -37,6 +37,10 @@
         .sidebar { width: 320px; border-right: 1px solid #eee; display: flex; flex-direction: column; background: #fafafa; }
         .sidebar-header { padding: 0 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; height: 60px; }
         
+        /* 自分の名前表示エリア */
+        .my-profile-area { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+        #my-name-disp { font-weight: bold; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+
         .icon-area { display: flex; gap: 5px; align-items: center; }
         
         .badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; display: none; border: 2px solid #fff; }
@@ -54,8 +58,7 @@
         .chat-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
         .chat-header { padding: 0 20px; border-bottom: 1px solid #eee; height: 60px; display: flex; align-items: center; font-weight: bold; justify-content: space-between; }
         
-        /* グループ操作ボタンエリア */
-        .group-actions { display: none; gap: 5px; } /* 初期状態は非表示 */
+        .group-actions { display: none; gap: 5px; }
 
         .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #fff; }
         
@@ -68,12 +71,12 @@
         .received .bubble { background: #f2f2f2; color: #000; border-bottom-left-radius: 2px; }
         .bubble img, .bubble video, .bubble iframe { max-width: 100%; border-radius: 8px; margin-top: 5px; }
 
-        .sender-name { font-size: 0.7rem; color: #999; margin-bottom: 4px; margin-left: 4px; }
+        .sender-name { font-size: 0.75rem; color: #888; margin-bottom: 4px; margin-left: 4px; font-weight: 500; }
         .read-mark { font-size: 0.7rem; color: #999; margin-top: 4px; visibility: hidden; text-align: right; margin-right: 4px; }
         .read-mark.visible { visibility: visible; }
 
         .input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; visibility: hidden; align-items: center; background: #fff; }
-        .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; font-size: 1rem; }
+        .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; }
         .input-area input[type=text]:focus { background: #f0f0f0; outline: none; }
         
         /* モーダル */
@@ -108,7 +111,12 @@
     <div id="main-screen">
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <span id="my-name-disp" style="font-weight:bold; font-size:1.1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80px;">ID</span>
+                <div class="my-profile-area">
+                    <span id="my-name-disp">ID</span>
+                    <div class="icon-btn" onclick="openSettingsModal()" title="設定" style="padding: 4px;">
+                        <span class="material-icons" style="font-size: 20px; color: #666;">settings</span>
+                    </div>
+                </div>
                 
                 <div class="icon-area">
                     <div class="icon-btn" onclick="document.getElementById('modal-notif').style.display='flex'" title="通知">
@@ -203,6 +211,16 @@
         </div>
     </div>
 
+    <div id="modal-settings" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title"><span class="material-icons">settings</span> 設定</div>
+            <p style="font-weight:bold; margin-bottom:5px;">表示名の変更</p>
+            <input type="text" id="settings-display-name" placeholder="新しい名前を入力" style="width:100%; margin-bottom:15px;">
+            <button onclick="saveSettings()" style="width:100%;">保存する</button>
+            <button class="secondary close-btn" onclick="closeModal('modal-settings')">キャンセル</button>
+        </div>
+    </div>
+
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
@@ -229,6 +247,7 @@
         const db = getFirestore(app);
 
         let myId = "";
+        let myDisplayName = ""; // ★自分の表示名★
         let currentChatId = "";
         let currentChatType = ""; 
         let myFriends = [];
@@ -236,7 +255,7 @@
 
         window.onload = () => {
             const savedId = localStorage.getItem("my_chat_id");
-            if(savedId) success(savedId);
+            if(savedId) authSuccess(savedId);
         };
 
         window.authLogin = async () => {
@@ -248,23 +267,38 @@
             const snap = await getDocs(query(collection(db, "users"), where("__name__", "==", id)));
 
             if (!snap.empty) {
-                if (snap.docs[0].data().password === pass) success(id);
+                if (snap.docs[0].data().password === pass) authSuccess(id);
                 else alert("パスワードが違います");
             } else {
                 if(confirm("新規登録しますか？")) {
-                    await setDoc(userRef, { username: id, password: pass, friends: [] });
-                    success(id);
+                    // 新規登録時はIDをそのまま表示名にする
+                    await setDoc(userRef, { username: id, password: pass, friends: [], displayName: id });
+                    authSuccess(id);
                 }
             }
         };
 
-        function success(id) {
+        async function authSuccess(id) {
             myId = id;
             localStorage.setItem("my_chat_id", id);
-            document.getElementById('my-name-disp').innerText = id;
+            
+            // ★最新の自分の情報を取得して表示名を設定★
+            const userSnap = await getDoc(doc(db, "users", myId));
+            if (userSnap.exists()) {
+                myDisplayName = userSnap.data().displayName || myId;
+            } else {
+                myDisplayName = myId;
+            }
+            updateMyNameDisplay();
+
             document.getElementById('login-screen').style.display='none';
             document.getElementById('main-screen').style.display='flex';
             startListeners();
+        }
+
+        // ★自分の名前表示を更新する関数★
+        function updateMyNameDisplay() {
+            document.getElementById('my-name-disp').innerText = myDisplayName;
         }
 
         window.logout = () => {
@@ -273,6 +307,31 @@
                 location.reload();
             }
         };
+
+        // --- 設定（名前変更）機能 ---
+        window.openSettingsModal = () => {
+            // 現在の名前を入力欄に入れておく
+            document.getElementById('settings-display-name').value = myDisplayName;
+            document.getElementById('modal-settings').style.display = 'flex';
+        };
+
+        window.saveSettings = async () => {
+            const newName = document.getElementById('settings-display-name').value.trim();
+            if (!newName) return alert("名前を入力してください");
+
+            // Firestoreの自分の情報を更新
+            await updateDoc(doc(db, "users", myId), {
+                displayName: newName
+            });
+
+            // 自分の画面の表示を更新
+            myDisplayName = newName;
+            updateMyNameDisplay();
+
+            alert("名前を変更しました");
+            closeModal('modal-settings');
+        };
+
 
         function startListeners() {
             onSnapshot(doc(db, "users", myId), (doc) => {
@@ -338,7 +397,6 @@
             });
         }
 
-        // --- 友達追加・承認・削除 ---
         window.sendRequest = async () => {
             const to = document.getElementById('search-id').value.trim();
             if(!to || to === myId) return alert("無効なIDです");
@@ -367,7 +425,6 @@
             if(currentChatId === fid) resetChatView();
         };
 
-        // --- グループ機能（作成・退会・招待） ---
         window.openGroupModal = () => {
             const list = document.getElementById('group-member-list');
             list.innerHTML = "";
@@ -393,21 +450,14 @@
             closeModal('modal-create-group');
         };
 
-        // ★グループ招待（途中参加）★
         window.openInviteModal = async () => {
             if(!currentChatId || currentChatType !== 'group') return;
-            
-            // 現在のグループメンバーを取得
             const gSnap = await getDoc(doc(db, "groups", currentChatId));
             if(!gSnap.exists()) return;
             const currentMembers = gSnap.data().members || [];
-
             const list = document.getElementById('invite-member-list');
             list.innerHTML = "";
-            
-            // まだメンバーではない友達だけ表示
             const candidates = myFriends.filter(fid => !currentMembers.includes(fid));
-
             if(candidates.length === 0) {
                 list.innerHTML = "<p style='color:#999;'>招待できる友達がいません<br>(全員参加済みか友達がいません)</p>";
             } else {
@@ -422,22 +472,19 @@
         window.executeInvite = async () => {
             const checks = document.querySelectorAll('#invite-member-list input:checked');
             if(checks.length === 0) return alert("選択してください");
-            
             const newMembers = [];
             checks.forEach(c => newMembers.push(c.value));
-
             const batch = writeBatch(db);
             newMembers.forEach(mem => {
                 batch.update(doc(db, "groups", currentChatId), { members: arrayUnion(mem) });
             });
-            
             await batch.commit();
-            await sendMessageData(`メンバーを追加しました: ${newMembers.join(", ")}`, null); // システムメッセージ風
+            // システムメッセージも表示名で送る
+            await sendMessageData(`メンバーを追加しました: ${newMembers.join(", ")}`, null); 
             alert("招待しました");
             closeModal('modal-invite-group');
         };
 
-        // ★グループ退会★
         window.leaveGroup = async () => {
             if(!confirm("本当にこのグループから抜けますか？")) return;
             await updateDoc(doc(db, "groups", currentChatId), {
@@ -446,7 +493,6 @@
             resetChatView();
         };
 
-        // --- チャット表示 ---
         function selectChat(id, type, name) {
             currentChatId = id;
             currentChatType = type;
@@ -454,17 +500,13 @@
                 <span class="material-icons" style="font-size:20px; color:#000; margin-right:5px;">${type==='group'?'groups':'person'}</span> ${name}`;
             document.getElementById('chat-title').style.color = "#000";
             document.getElementById('input-area').style.visibility = 'visible';
-            
-            // グループなら招待・退会ボタンを表示
             const actions = document.getElementById('group-actions');
             if(type === 'group') {
                 actions.style.display = 'flex';
             } else {
                 actions.style.display = 'none';
             }
-
             if(window.innerWidth <= 600) document.getElementById('sidebar').classList.add('hidden');
-
             renderFriends();
             renderMessages();
             if(type === 'user') markRead(id);
@@ -481,7 +523,6 @@
 
         window.showSidebar = () => {
             document.getElementById('sidebar').classList.remove('hidden');
-            // resetChatView(); // 戻るときにチャットを閉じない方が使いやすいのでコメントアウト
         };
 
         function renderMessages() {
@@ -514,7 +555,11 @@
                     }
                 }
                 let info = "";
-                if(!isMe && currentChatType === 'group') info = `<div class="sender-name">${m.from}</div>`;
+                // ★相手の名前を表示する際、senderName（表示名）があればそれを使う★
+                if(!isMe && currentChatType === 'group') {
+                    const displayName = m.senderName || m.from; // 表示名がなければIDを表示
+                    info = `<div class="sender-name">${displayName}</div>`;
+                }
                 if(isMe && currentChatType === 'user') info += `<div class="read-mark ${m.isRead?'visible':''}">既読</div>`;
                 div.innerHTML = info + `<div class="bubble">${content}</div>`;
                 container.appendChild(div);
@@ -546,9 +591,16 @@
 
         async function sendMessageData(text, imageBase64) {
             if(!currentChatId) return;
+            // ★メッセージ送信時に、現在の表示名(myDisplayName)を含める★
             await addDoc(collection(db, "messages"), {
-                from: myId, to: currentChatId, text: text, image: imageBase64,
-                isGroup: currentChatType === 'group', timestamp: new Date().getTime(), isRead: false
+                from: myId,
+                senderName: myDisplayName, // これを追加
+                to: currentChatId,
+                text: text,
+                image: imageBase64,
+                isGroup: currentChatType === 'group',
+                timestamp: new Date().getTime(),
+                isRead: false
             });
         }
 
