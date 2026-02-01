@@ -2,30 +2,42 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>chat</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="apple-touch-icon" href="icon.png">
+
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
     <style>
         /* --- デザイン設定 --- */
         body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; height: 100vh; background: #fff; color: #333; display: flex; overflow: hidden; }
         
+        /* アイコン */
         .material-icons { font-size: 24px; vertical-align: middle; }
-        .icon-btn { cursor: pointer; color: #333; transition: color 0.2s; position: relative; padding: 5px; display: flex; align-items: center; justify-content: center; }
-        .icon-btn:hover { color: #888; background: rgba(0,0,0,0.05); border-radius: 50%; }
+        .icon-btn { cursor: pointer; color: #333; transition: color 0.2s; position: relative; padding: 8px; display: flex; align-items: center; justify-content: center; }
+        .icon-btn:hover { background: rgba(0,0,0,0.05); border-radius: 50%; }
 
-        button { background: #000; color: #fff; border: 1px solid #000; padding: 8px 16px; cursor: pointer; font-weight: bold; font-size: 0.9rem; border-radius: 4px; transition: opacity 0.2s; }
+        /* ボタン */
+        button { background: #000; color: #fff; border: 1px solid #000; padding: 10px 16px; cursor: pointer; font-weight: bold; font-size: 0.9rem; border-radius: 8px; transition: opacity 0.2s; }
         button:hover { opacity: 0.8; }
         button.secondary { background: #fff; color: #000; border: 1px solid #ddd; }
+        button.danger { background: #fff; color: #d32f2f; border: 1px solid #d32f2f; }
         
-        input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 4px; transition: border 0.2s; }
+        input { padding: 12px; border: 1px solid #ddd; outline: none; box-sizing: border-box; border-radius: 8px; transition: border 0.2s; }
         input:focus { border-color: #000; }
 
+        /* 画面レイアウト */
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         #main-screen { display: none; width: 100%; height: 100%; }
         
+        /* サイドバー */
         .sidebar { width: 320px; border-right: 1px solid #eee; display: flex; flex-direction: column; background: #fafafa; }
         .sidebar-header { padding: 0 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; height: 60px; }
         
-        .icon-area { display: flex; gap: 8px; align-items: center; }
+        .icon-area { display: flex; gap: 5px; align-items: center; }
         
         .badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; display: none; border: 2px solid #fff; }
         .badge.active { display: block; }
@@ -38,12 +50,16 @@
         .item-row.active { background: #eee; border-right: 4px solid #000; }
         .item-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 
+        /* チャットエリア */
         .chat-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
         .chat-header { padding: 0 20px; border-bottom: 1px solid #eee; height: 60px; display: flex; align-items: center; font-weight: bold; justify-content: space-between; }
         
+        /* グループ操作ボタンエリア */
+        .group-actions { display: none; gap: 5px; } /* 初期状態は非表示 */
+
         .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #fff; }
         
-        .msg { display: flex; flex-direction: column; max-width: 70%; }
+        .msg { display: flex; flex-direction: column; max-width: 85%; }
         .msg.sent { align-self: flex-end; align-items: flex-end; }
         .msg.received { align-self: flex-start; align-items: flex-start; }
         
@@ -56,17 +72,26 @@
         .read-mark { font-size: 0.7rem; color: #999; margin-top: 4px; visibility: hidden; text-align: right; margin-right: 4px; }
         .read-mark.visible { visibility: visible; }
 
-        .input-area { padding: 20px; border-top: 1px solid #eee; display: flex; gap: 15px; visibility: hidden; align-items: center; background: #fff; }
-        .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; }
+        .input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; visibility: hidden; align-items: center; background: #fff; }
+        .input-area input[type=text] { flex: 1; background: #f9f9f9; border: none; padding: 15px; border-radius: 24px; font-size: 1rem; }
         .input-area input[type=text]:focus { background: #f0f0f0; outline: none; }
         
         /* モーダル */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
-        .modal-box { background: #fff; padding: 30px; width: 380px; max-height: 80vh; overflow-y: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-box { background: #fff; padding: 30px; width: 90%; max-width: 380px; max-height: 80vh; overflow-y: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .modal-title { font-weight: bold; font-size: 1.2rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
         .close-btn { margin-top: 20px; width: 100%; }
         .check-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
         .check-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
+
+        /* スマホ向け調整 */
+        @media (max-width: 600px) {
+            .sidebar { display: flex; width: 100%; position: absolute; z-index: 100; height: 100%; transform: translateX(0); transition: transform 0.3s; }
+            .sidebar.hidden { transform: translateX(-100%); }
+            .chat-area { width: 100%; }
+            .chat-header .back-btn { display: block; margin-right: 10px; cursor: pointer; }
+        }
+        .back-btn { display: none; }
     </style>
 </head>
 <body>
@@ -81,9 +106,9 @@
     </div>
 
     <div id="main-screen">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <span id="my-name-disp" style="font-weight:bold; font-size:1.1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100px;">ID</span>
+                <span id="my-name-disp" style="font-weight:bold; font-size:1.1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80px;">ID</span>
                 
                 <div class="icon-area">
                     <div class="icon-btn" onclick="document.getElementById('modal-notif').style.display='flex'" title="通知">
@@ -112,7 +137,18 @@
 
         <div class="chat-area">
             <div class="chat-header">
-                <span id="chat-title" style="color:#888;">チャットを選択</span>
+                <div style="display:flex; align-items:center;">
+                    <span class="material-icons back-btn" onclick="showSidebar()">arrow_back</span>
+                    <span id="chat-title" style="color:#888;">チャットを選択</span>
+                </div>
+                <div class="group-actions" id="group-actions">
+                    <div class="icon-btn" onclick="openInviteModal()" title="メンバーを追加">
+                        <span class="material-icons">person_add_alt</span>
+                    </div>
+                    <div class="icon-btn" onclick="leaveGroup()" title="グループから退会">
+                        <span class="material-icons" style="color:#d32f2f;">exit_to_app</span>
+                    </div>
+                </div>
             </div>
             <div class="messages" id="messages-container"></div>
             
@@ -121,8 +157,8 @@
                     <span class="material-icons">photo_camera</span>
                     <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="sendImage(this)">
                 </label>
-                <input type="text" id="msg-input" placeholder="メッセージを入力...">
-                <button onclick="sendMessage()" style="border-radius:24px; padding:10px 24px;">
+                <input type="text" id="msg-input" placeholder="メッセージ...">
+                <button onclick="sendMessage()" style="border-radius:24px; padding:10px 20px;">
                     <span class="material-icons" style="font-size:18px;">send</span>
                 </button>
             </div>
@@ -137,6 +173,7 @@
             <button class="secondary close-btn" onclick="closeModal('modal-add-friend')">キャンセル</button>
         </div>
     </div>
+    
     <div id="modal-notif" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">notifications</span> お知らせ</div>
@@ -144,6 +181,7 @@
             <button class="secondary close-btn" onclick="closeModal('modal-notif')">閉じる</button>
         </div>
     </div>
+    
     <div id="modal-create-group" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title"><span class="material-icons">groups</span> グループ作成</div>
@@ -155,9 +193,25 @@
         </div>
     </div>
 
+    <div id="modal-invite-group" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title"><span class="material-icons">person_add_alt</span> グループへ招待</div>
+            <p style="font-size:0.85rem; color:#666; margin-bottom:5px;">招待する友達を選択:</p>
+            <div class="check-list" id="invite-member-list"></div>
+            <button onclick="executeInvite()" style="width:100%;">招待する</button>
+            <button class="secondary close-btn" onclick="closeModal('modal-invite-group')">キャンセル</button>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, getDocs, setDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, getDocs, setDoc, arrayUnion, arrayRemove, writeBatch, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // ★★★ Firebaseの鍵をここに貼る ★★★
         const firebaseConfig = {
@@ -180,16 +234,11 @@
         let myFriends = [];
         let allMessages = [];
 
-        // ★起動時に自動ログインチェック
         window.onload = () => {
             const savedId = localStorage.getItem("my_chat_id");
-            if(savedId) {
-                // 保存されたIDがあればパスワード入力を飛ばしてログイン
-                success(savedId);
-            }
+            if(savedId) success(savedId);
         };
 
-        // --- ログイン ---
         window.authLogin = async () => {
             const id = document.getElementById('login-id').value.trim();
             const pass = document.getElementById('login-pass').value.trim();
@@ -211,24 +260,20 @@
 
         function success(id) {
             myId = id;
-            // ★ログイン成功時にIDをブラウザに保存
             localStorage.setItem("my_chat_id", id);
-
             document.getElementById('my-name-disp').innerText = id;
             document.getElementById('login-screen').style.display='none';
             document.getElementById('main-screen').style.display='flex';
             startListeners();
         }
 
-        // ★ログアウト機能
         window.logout = () => {
             if(confirm("ログアウトしますか？")) {
-                localStorage.removeItem("my_chat_id"); // 保存データを消す
-                location.reload(); // 画面を再読み込みしてログイン画面へ
+                localStorage.removeItem("my_chat_id");
+                location.reload();
             }
         };
 
-        // --- 以下、チャット機能（変更なし） ---
         function startListeners() {
             onSnapshot(doc(db, "users", myId), (doc) => {
                 myFriends = doc.data().friends || [];
@@ -293,6 +338,7 @@
             });
         }
 
+        // --- 友達追加・承認・削除 ---
         window.sendRequest = async () => {
             const to = document.getElementById('search-id').value.trim();
             if(!to || to === myId) return alert("無効なIDです");
@@ -318,14 +364,10 @@
             batch.update(doc(db, "users", myId), { friends: arrayRemove(fid) });
             batch.update(doc(db, "users", fid), { friends: arrayRemove(myId) });
             await batch.commit();
-            if(currentChatId === fid) {
-                currentChatId = "";
-                document.getElementById('input-area').style.visibility = 'hidden';
-                document.getElementById('messages-container').innerHTML = "";
-                document.getElementById('chat-title').innerText = "チャットを選択";
-            }
+            if(currentChatId === fid) resetChatView();
         };
 
+        // --- グループ機能（作成・退会・招待） ---
         window.openGroupModal = () => {
             const list = document.getElementById('group-member-list');
             list.innerHTML = "";
@@ -351,6 +393,60 @@
             closeModal('modal-create-group');
         };
 
+        // ★グループ招待（途中参加）★
+        window.openInviteModal = async () => {
+            if(!currentChatId || currentChatType !== 'group') return;
+            
+            // 現在のグループメンバーを取得
+            const gSnap = await getDoc(doc(db, "groups", currentChatId));
+            if(!gSnap.exists()) return;
+            const currentMembers = gSnap.data().members || [];
+
+            const list = document.getElementById('invite-member-list');
+            list.innerHTML = "";
+            
+            // まだメンバーではない友達だけ表示
+            const candidates = myFriends.filter(fid => !currentMembers.includes(fid));
+
+            if(candidates.length === 0) {
+                list.innerHTML = "<p style='color:#999;'>招待できる友達がいません<br>(全員参加済みか友達がいません)</p>";
+            } else {
+                candidates.forEach(fid => {
+                    list.innerHTML += `
+                        <label class="check-item"><input type="checkbox" value="${fid}"> ${fid}</label>`;
+                });
+            }
+            document.getElementById('modal-invite-group').style.display='flex';
+        };
+
+        window.executeInvite = async () => {
+            const checks = document.querySelectorAll('#invite-member-list input:checked');
+            if(checks.length === 0) return alert("選択してください");
+            
+            const newMembers = [];
+            checks.forEach(c => newMembers.push(c.value));
+
+            const batch = writeBatch(db);
+            newMembers.forEach(mem => {
+                batch.update(doc(db, "groups", currentChatId), { members: arrayUnion(mem) });
+            });
+            
+            await batch.commit();
+            await sendMessageData(`メンバーを追加しました: ${newMembers.join(", ")}`, null); // システムメッセージ風
+            alert("招待しました");
+            closeModal('modal-invite-group');
+        };
+
+        // ★グループ退会★
+        window.leaveGroup = async () => {
+            if(!confirm("本当にこのグループから抜けますか？")) return;
+            await updateDoc(doc(db, "groups", currentChatId), {
+                members: arrayRemove(myId)
+            });
+            resetChatView();
+        };
+
+        // --- チャット表示 ---
         function selectChat(id, type, name) {
             currentChatId = id;
             currentChatType = type;
@@ -358,10 +454,35 @@
                 <span class="material-icons" style="font-size:20px; color:#000; margin-right:5px;">${type==='group'?'groups':'person'}</span> ${name}`;
             document.getElementById('chat-title').style.color = "#000";
             document.getElementById('input-area').style.visibility = 'visible';
+            
+            // グループなら招待・退会ボタンを表示
+            const actions = document.getElementById('group-actions');
+            if(type === 'group') {
+                actions.style.display = 'flex';
+            } else {
+                actions.style.display = 'none';
+            }
+
+            if(window.innerWidth <= 600) document.getElementById('sidebar').classList.add('hidden');
+
             renderFriends();
             renderMessages();
             if(type === 'user') markRead(id);
         }
+
+        function resetChatView() {
+            currentChatId = "";
+            document.getElementById('input-area').style.visibility = 'hidden';
+            document.getElementById('group-actions').style.display = 'none';
+            document.getElementById('messages-container').innerHTML = "";
+            document.getElementById('chat-title').innerText = "チャットを選択";
+            if(window.innerWidth <= 600) showSidebar();
+        }
+
+        window.showSidebar = () => {
+            document.getElementById('sidebar').classList.remove('hidden');
+            // resetChatView(); // 戻るときにチャットを閉じない方が使いやすいのでコメントアウト
+        };
 
         function renderMessages() {
             const container = document.getElementById('messages-container');
